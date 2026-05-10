@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Fundraiser</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser4.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+
+  <div class="container">
+    <div class="left-panel">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+      </a>
+      <h1>Add a cover photo</h1><br>
+      <p>Capture attention quickly with a clear</p>
+      <p>and vibrant photo of your cause.</p>
+    </div>
+
+    <div class="right-panel">
+      <div class="top-bar">
+        {% if not session.get('email') %}
+          <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+          <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="middle">
+        <div class="progress-indicator small">
+          <div class="progress-step small completed"><span>1</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>2</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small active"><span>3</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>4</span></div>
+        </div>
+        <div class="content">
+          <form method="POST" action="{{ url_for('start_fundraiser_4') }}" enctype="multipart/form-data">
+            <div class="upload-section">
+              <h3>Main Cover Image</h3>
+              <label for="file-upload" class="upload-box main-upload" title="Upload a clear, high-quality image that represents your cause. Supported formats: JPG, PNG. Maximum size: 10MB">
+                <img src="{{ url_for('static', filename='images/upload_image.png') }}" alt="Upload icon" class="upload-icon">
+                <span class="upload-text">Drag or upload your main cover image here</span>
+                <span class="upload-hint" style="font-size:12px;color:#888;">JPG or PNG only</span>
+                <img id="preview-img" class="preview-img" style="display: none;" alt="Preview">
+                <input id="file-upload" name="fund_img" type="file" accept=".jpg,.jpeg,.png" hidden>
+              </label>
+            </div>
+
+            <div class="upload-section dos">
+              <h3>Additional Images (Optional)</h3>
+              <p class="upload-description">Add more images to showcase your cause. You can upload multiple images at once.</p>
+              
+              <label for="multiple-file-upload" class="upload-box multiple-upload" title="Upload multiple images to showcase your cause. Supported formats: JPG, PNG. Maximum size: 10MB each">
+                <img src="{{ url_for('static', filename='images/upload_image.png') }}" alt="Upload icon" class="upload-icon">
+                <span class="upload-text">Drag or upload multiple images here</span>
+                <span class="upload-hint" style="font-size:12px;color:#888;">JPG or PNG only</span>
+                <input id="multiple-file-upload" name="additional_images" type="file" accept=".jpg,.jpeg,.png" multiple hidden>
+              </label>
+
+              <div class="preview-grid" id="previewGrid" style="display: none;">
+                <h4>Preview Images:</h4>
+                <div class="images-container" id="imagesContainer">
+                  <!-- JS -->
+                </div>
+              </div>
+            </div>
+
+            <div class="bottom-bar">
+              <a href="{{ url_for('start_fundraiser_3') }}" class="back-btn">←</a>
+              <button type="submit" class="continue-btn">Continue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const fileInput = document.getElementById('file-upload');
+  const previewImg = document.getElementById('preview-img');
+  const uploadIcon = document.querySelector('.main-upload .upload-icon');
+  const uploadText = document.querySelector('.main-upload .upload-text');
+
+  const ALLOWED = ['image/jpeg', 'image/jpg', 'image/png'];
+
+  fileInput.addEventListener('change', function() {
+      const file = this.files[0];
+      if (file) {
+          if (!ALLOWED.includes(file.type)) {
+              alert('Invalid file format. Please upload a JPG or PNG image only.');
+              this.value = '';
+              return;
+          }
+          const reader = new FileReader();
+          reader.onload = function(e) {
+              previewImg.src = e.target.result;
+              previewImg.style.display = 'block';
+              uploadIcon.style.display = 'none';
+              uploadText.style.display = 'none';
+          }
+          reader.readAsDataURL(file);
+      } else {
+          previewImg.style.display = 'none';
+          uploadIcon.style.display = 'block';
+          uploadText.style.display = 'block';
+      }
+  });
+
+  const multipleFileInput = document.getElementById('multiple-file-upload');
+  const previewGrid = document.getElementById('previewGrid');
+  const imagesContainer = document.getElementById('imagesContainer');
+  const multipleUploadIcon = document.querySelector('.multiple-upload .upload-icon');
+  const multipleUploadText = document.querySelector('.multiple-upload .upload-text');
+
+  multipleFileInput.addEventListener('change', function() {
+      const files = Array.from(this.files);
+      const invalid = files.filter(f => !ALLOWED.includes(f.type));
+      if (invalid.length > 0) {
+          alert('Some files were skipped. Please upload JPG or PNG images only.');
+          const dt = new DataTransfer();
+          files.filter(f => ALLOWED.includes(f.type)).forEach(f => dt.items.add(f));
+          this.files = dt.files;
+      }
+      
+      if (files.length > 0) {
+          imagesContainer.innerHTML = '';
+          
+          previewGrid.style.display = 'block';
+          
+          multipleUploadIcon.style.display = 'none';
+          multipleUploadText.style.display = 'none';
+          
+          files.forEach((file, index) => {
+              if (file && file.type.startsWith('image/')) {
+                  const reader = new FileReader();
+                  reader.onload = function(e) {
+                      const imagePreview = document.createElement('div');
+                      imagePreview.className = 'image-preview-item';
+                      imagePreview.innerHTML = `
+                          <img src="${e.target.result}" alt="Preview ${index + 1}" class="preview-thumbnail">
+                          <div class="image-info">
+                              <span class="image-name">${file.name}</span>
+                              <span class="image-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
+                          </div>
+                          <button type="button" class="remove-image-btn" onclick="removeImage(${index})">×</button>
+                      `;
+                      imagesContainer.appendChild(imagePreview);
+                  };
+                  reader.readAsDataURL(file);
+              }
+          });
+      } else {
+          previewGrid.style.display = 'none';
+          multipleUploadIcon.style.display = 'block';
+          multipleUploadText.style.display = 'block';
+      }
+  });
+
+  function removeImage(index) {
+      const dt = new DataTransfer();
+      const files = Array.from(multipleFileInput.files);
+      
+      files.splice(index, 1);
+      
+      files.forEach(file => dt.items.add(file));
+      multipleFileInput.files = dt.files;
+      
+      multipleFileInput.dispatchEvent(new Event('change'));
+  }
+
+  const uploadBoxes = document.querySelectorAll('.upload-box');
+  
+  uploadBoxes.forEach(box => {
+      box.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          this.classList.add('drag-over');
+      });
+      
+      box.addEventListener('dragleave', function(e) {
+          e.preventDefault();
+          this.classList.remove('drag-over');
+      });
+      
+      box.addEventListener('drop', function(e) {
+          e.preventDefault();
+          this.classList.remove('drag-over');
+          
+          const files = Array.from(e.dataTransfer.files);
+          const input = this.querySelector('input[type="file"]');
+          
+          if (input.id === 'file-upload') {
+              if (files.length > 0 && ALLOWED.includes(files[0].type)) {
+                  input.files = e.dataTransfer.files;
+                  input.dispatchEvent(new Event('change'));
+              } else if (files.length > 0) {
+                  alert('Invalid file format. Please upload a JPG or PNG image only.');
+              }
+          } else if (input.id === 'multiple-file-upload') {
+              const imageFiles = files.filter(file => ALLOWED.includes(file.type));
+              if (imageFiles.length > 0) {
+                  const dt = new DataTransfer();
+                  imageFiles.forEach(file => dt.items.add(file));
+                  input.files = dt.files;
+                  input.dispatchEvent(new Event('change'));
+              }
+          }
+      });
+  });
+</script>
+
+</body>
+</html>

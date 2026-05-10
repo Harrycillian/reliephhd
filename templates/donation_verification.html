@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReliePH | Verify QR Payment</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='donation_verification.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+  <header class="navbar verification-navbar">
+    <div class="nav-left">
+      <a href="{{ url_for('qrph_payment_page', donation_id=donation.don_id) }}" class="back-btn">&#8592; Back to QR Payment</a>
+    </div>
+    <div class="nav-center">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+      </a>
+    </div>
+    <div class="nav-right"></div>
+  </header>
+
+  <main class="verification-container">
+    <section class="verification-card">
+      <span class="eyebrow">Verification Required</span>
+      <h1>Confirm your QR payment before viewing the receipt</h1>
+      <p class="intro">
+        Your QR payment was detected successfully. To continue, enter a reference number or upload a screenshot of the completed payment.
+      </p>
+
+      <div class="payment-summary">
+        <div class="summary-row">
+          <span>Fundraiser</span>
+          <strong>{{ fundraiser.fund_title }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Amount</span>
+          <strong>&#8369;{{ "{:,.2f}".format(donation.don_amount) }}</strong>
+        </div>
+        <div class="summary-row">
+          <span>Status</span>
+          <strong>{{ donation.don_status }}</strong>
+        </div>
+      </div>
+
+      {% if error_message %}
+      <div class="error-banner">{{ error_message }}</div>
+      {% endif %}
+
+      <form method="POST" enctype="multipart/form-data" class="verification-form">
+        <label for="reference_number">Reference Number</label>
+        <input
+          type="text"
+          id="reference_number"
+          name="reference_number"
+          placeholder="Enter your reference number"
+          autocomplete="off"
+          value="{{ entered_reference or extracted_reference or '' }}"
+          required
+        >
+        <!-- <p class="field-note">Any value entered here will be saved as the donation reference number for this donation.</p> -->
+
+        <div class="divider">
+          <span>or</span>
+        </div>
+
+        <label for="payment_screenshot">Payment Screenshot</label>
+        <input
+          type="file"
+          id="payment_screenshot"
+          name="payment_screenshot"
+          accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+        >
+        <p class="field-note">Accepted files: PNG, JPG, or JPEG.</p>
+        <p class="ocr-note" id="ocr-status" data-endpoint="{{ url_for('extract_donation_reference_from_screenshot') }}">
+          Upload a screenshot to try automatic reference detection.
+        </p>
+
+        <button type="submit" class="primary-btn" id="continue-btn" {% if not (entered_reference or extracted_reference) %}disabled{% endif %}>Continue to Receipt</button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const screenshotInput = document.getElementById('payment_screenshot');
+    const referenceInput = document.getElementById('reference_number');
+    const ocrStatus = document.getElementById('ocr-status');
+    const continueBtn = document.getElementById('continue-btn');
+    const extractEndpoint = ocrStatus.dataset.endpoint;
+
+    function syncContinueButton() {
+      if (!continueBtn || !referenceInput) return;
+      continueBtn.disabled = !referenceInput.value.trim();
+    }
+
+    if (referenceInput) {
+      referenceInput.addEventListener('input', syncContinueButton);
+      syncContinueButton();
+    }
+
+    if (screenshotInput && referenceInput && ocrStatus) {
+      screenshotInput.addEventListener('change', async () => {
+        const file = screenshotInput.files && screenshotInput.files[0];
+        if (!file) {
+          ocrStatus.textContent = 'Upload a screenshot to try automatic reference detection.';
+          ocrStatus.classList.remove('error', 'success', 'loading');
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append('payment_screenshot', file);
+
+        ocrStatus.textContent = 'Reading screenshot for a reference number...';
+        ocrStatus.classList.remove('error', 'success');
+        ocrStatus.classList.add('loading');
+
+        try {
+          const response = await fetch(extractEndpoint, {
+            method: 'POST',
+            body: formData
+          });
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || 'OCR request failed.');
+          }
+
+          if (data.reference_number) {
+            if (!referenceInput.value.trim()) {
+              referenceInput.value = data.reference_number;
+              syncContinueButton();
+            }
+            ocrStatus.textContent = `Detected reference number: ${data.reference_number}`;
+            ocrStatus.classList.remove('loading', 'error');
+            ocrStatus.classList.add('success');
+          } else {
+            ocrStatus.textContent = 'No reference number was detected. You can still type one manually and continue.';
+            ocrStatus.classList.remove('loading', 'success');
+            ocrStatus.classList.add('error');
+          }
+        } catch (error) {
+          ocrStatus.textContent = 'Automatic detection is unavailable right now. You can still type any reference number manually.';
+          ocrStatus.classList.remove('loading', 'success');
+          ocrStatus.classList.add('error');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

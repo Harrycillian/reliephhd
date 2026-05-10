@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Treasurer - Fund Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='treasurer.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Fund Management</h3>
+        </div>
+
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="#" class="signout-btn" onclick="confirmSignOut()">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="treasurer-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('treasurer') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('treasurer_reports') }}" class="nav-tab">Financial Reports</a></li>
+                <li><a href="{{ url_for('treasurer_analytics') }}" class="nav-tab">Analytics</a></li>
+                <li><a href="{{ url_for('treasurer_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('treasurer_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('treasurer_audit_trail') }}" class="nav-tab active">Fund Management</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <div class="page-head">
+                <div>
+                    <h2>Fund Management and Transparency</h2>
+                    <p>Track each donation individually from receipt through fund usage, completion proof, and public transparency.</p>
+                </div>
+                <div class="page-head-actions">
+                    <!-- <a href="{{ url_for('fund_transparency') }}" class="action-pill">Public Transparency</a>
+                    <a href="{{ url_for('blockchain_records') }}" class="action-pill secondary">Blockchain Records</a> -->
+                </div>
+            </div>
+
+            {% if request.args.get('proof_uploaded') %}
+            <div class="message success">Completion proof uploaded and appended to the public fund history.</div>
+            {% elif request.args.get('error') %}
+            <div class="message error">
+                {% if request.args.get('error') == 'missing_proof' %}
+                    Please choose an image proof before uploading.
+                {% elif request.args.get('error') == 'invalid_proof_type' %}
+                    Proof must be a JPG or PNG image.
+                {% elif request.args.get('error') == 'fund_not_completed' %}
+                    Completion proof can only be uploaded for completed records.
+                {% elif request.args.get('error') == 'donation_not_completed' %}
+                    Completion proof can only be uploaded after the donation fund usage is completed.
+                {% else %}
+                    Completion proof upload failed. Please try again.
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <h3>Total Donated Funds</h3>
+                    <div class="amount">₱{{ "{:,.2f}".format(summary.total_managed_funds) }}</div>
+                    <p class="subtitle">Paid donations across the platform</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Paid Donations</h3>
+                    <div class="amount">{{ summary.paid_donations }}</div>
+                    <p class="subtitle">Successful transactions</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Tracked Donations</h3>
+                    <div class="amount">{{ summary.total_campaigns }}</div>
+                    <p class="subtitle">{{ summary.active_campaigns }} in progress, {{ summary.completed_campaigns }} completed</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Pending Usage</h3>
+                    <div class="amount">{{ summary.pending_usage }}</div>
+                    <p class="subtitle">{{ summary.in_progress_usage }} in progress, {{ summary.completed_usage }} completed allocations</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Blockchain-Backed Entries</h3>
+                    <div class="amount">{{ summary.blockchain_records }}</div>
+                    <p class="subtitle">Paid donations with recorded hash</p>
+                </div>
+            </div>
+
+            <div class="filter-section">
+                <form method="GET" class="filter-form">
+                    <input type="hidden" name="fund_page" value="{{ fundraiser_pagination.page }}">
+                    <input type="hidden" name="fund_status" value="{{ fund_status_filter }}">
+                    <input type="hidden" name="fund_search" value="{{ fund_search_query }}">
+                    <input type="hidden" name="recent_page" value="{{ recent_pagination.page }}">
+                    <input type="hidden" name="audit_page" value="{{ audit_pagination.page }}">
+                    <div class="filter-group">
+                        <label for="search">Search Donation</label>
+                        <input type="text" id="search" name="search" value="{{ search_query }}" placeholder="Reference, donor, campaign, or donation ID">
+                    </div>
+                    <div class="filter-group">
+                        <label for="status">Fund Usage Status</label>
+                        <select id="status" name="status">
+                            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                            {% for workflow_status in donation_workflow_statuses %}
+                            <option value="{{ workflow_status }}" {% if status_filter == workflow_status %}selected{% endif %}>{{ workflow_status }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="filter-btn">Apply Filters</button>
+                    <a href="{{ url_for('treasurer_audit_trail') }}" class="clear-btn">Clear</a>
+                </form>
+            </div>
+
+            <div class="data-table-container">
+                <div class="section-header-row">
+                    <h3>Donation Fund Usage</h3>
+                    <span class="section-caption">{{ pagination.total }} donation{{ '' if pagination.total == 1 else 's' }} matched</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table fund-overview-table">
+                        <thead>
+                            <tr>
+                                <th>Donation</th>
+                                <th>Fund Usage</th>
+                                <th>Donor</th>
+                                <th>Amount</th>
+                                <th>Campaign</th>
+                                <th>Donated At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if donations %}
+                                {% for donation in donations %}
+                                <tr class="workflow-pair-row" data-workflow-row-id="donation-{{ donation.don_id }}">
+                                    <td>
+                                        <div class="fundraiser-cell">
+                                            <div class="fundraiser-title">{{ donation.don_refnum or ('Donation #' ~ donation.don_id) }}</div>
+                                            <div class="fundraiser-meta">
+                                                <span>ID: {{ donation.don_id }}</span>
+                                                <span>Payment: {{ donation.don_status or 'N/A' }}</span>
+                                                <span>{{ donation.don_paymethod or 'N/A' }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="workflow-control">
+                                            <span class="status-badge status-{{ (donation.fund_usage_status or 'donation-received').lower().replace(' ', '-').replace('/', '') }}">
+                                                {{ donation.fund_usage_status }}
+                                            </span>
+                                            <select
+                                                class="workflow-select"
+                                                data-reference-number="{{ donation.don_refnum }}"
+                                                data-current-status="{{ donation.fund_usage_status }}"
+                                            >
+                                                {% for workflow_status in donation.fund_usage_statuses %}
+                                                <option
+                                                    value="{{ workflow_status }}"
+                                                    {% if donation.fund_usage_status == workflow_status %}selected{% endif %}
+                                                    {% if workflow_status not in donation.allowed_fund_usage_statuses %}disabled{% endif %}
+                                                >
+                                                    {{ workflow_status }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="mini-btn workflow-update-btn" data-reference-number="{{ donation.don_refnum }}">Update</button>
+                                            <small class="workflow-date">
+                                                {{ donation.fund_usage_updated_at.strftime('%Y-%m-%d %H:%M') if donation.fund_usage_updated_at else 'Not updated yet' }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="beneficiary-stack">
+                                            <strong>{{ donation.don_donorname or 'Anonymous' }}</strong>
+                                            <span>{{ 'Registered donor #' ~ donation.don_donorid if donation.don_donorid else 'Anonymous or guest donor' }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="amount-cell">₱{{ "{:,.2f}".format(donation.don_amount or 0) }}</td>
+                                    <td>
+                                        <div class="beneficiary-stack">
+                                            <strong>{{ donation.fund_title or 'General Donation' }}</strong>
+                                            <span>{{ donation.fund_category or ('Fund ID: ' ~ (donation.fund_id or 'N/A')) }}</span>
+                                        </div>
+                                    </td>
+                                    <td class="donated-at-cell">{{ donation.don_date.strftime('%Y-%m-%d %H:%M') if donation.don_date else 'N/A' }}</td>
+                                    <td>
+                                        <div class="action-buttons compact">
+                                            {% if donation.fund_id %}
+                                            <a href="{{ url_for('fund_transparency_detail', fundraiser_id=donation.fund_id) }}" class="mini-btn secondary">Transparency</a>
+                                            {% endif %}
+                                            {% if donation.latest_proof_filename %}
+                                            <a
+                                                href="{{ url_for('static', filename='uploads/' ~ donation.latest_proof_filename) }}"
+                                                class="mini-btn secondary"
+                                                target="_blank"
+                                                rel="noopener"
+                                            >View Proof</a>
+                                            {% endif %}
+                                            {% if donation.fund_usage_status == 'Completed / Used' %}
+                                            <form
+                                                class="proof-upload-form"
+                                                method="POST"
+                                                action="{{ url_for('treasurer_upload_donation_completion_proof', donation_id=donation.don_id) }}"
+                                                enctype="multipart/form-data"
+                                            >
+                                                <input type="file" name="completion_proof" accept="image/png,image/jpeg" required>
+                                                <input type="text" name="proof_note" placeholder="Proof note">
+                                                <button type="submit" class="mini-btn proof-btn">Upload Proof</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="workflow-row workflow-pair-row" data-workflow-row-id="donation-{{ donation.don_id }}">
+                                    <td colspan="7">
+                                        <div class="workflow-steps" aria-label="Donation fund usage progress">
+                                            {% for workflow_status in donation.fund_usage_statuses %}
+                                            {% set step_index = loop.index0 %}
+                                            <div class="workflow-step {% if step_index < donation.fund_usage_step %}done{% elif step_index == donation.fund_usage_step %}current{% endif %}">
+                                                <span class="step-dot"></span>
+                                                <span class="step-label">{{ workflow_status }}</span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="empty-state">No donations matched the current filter.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if pagination.total_pages > 1 %}
+                {% set start_entry = ((pagination.page - 1) * pagination.per_page) + 1 if pagination.total > 0 else 0 %}
+                {% set end_entry = [pagination.page * pagination.per_page, pagination.total] | min if pagination.total > 0 else 0 %}
+                {% set start_page = [pagination.page - 1, 1] | max %}
+                {% set end_page = [start_page + 2, pagination.total_pages] | min %}
+                {% set start_page = [end_page - 2, 1] | max %}
+                <div class="pagination">
+                    <span class="page-info">
+                        Showing {{ start_entry }} to {{ end_entry }} of {{ pagination.total }} entries
+                    </span>
+
+                    <a href="{{ url_for('treasurer_audit_trail', page=pagination.prev_num, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if pagination.has_prev else '#' }}" class="page-btn {% if not pagination.has_prev %}disabled{% endif %}">Previous</a>
+                    {% for page_num in range(start_page, end_page + 1) %}
+                        <a href="{{ url_for('treasurer_audit_trail', page=page_num, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) }}" class="page-btn {% if page_num == pagination.page %}disabled{% endif %}">{{ page_num }}</a>
+                    {% endfor %}
+                    <a href="{{ url_for('treasurer_audit_trail', page=pagination.total_pages, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if pagination.page < pagination.total_pages else '#' }}" class="page-btn {% if pagination.page >= pagination.total_pages %}disabled{% endif %}">Last</a>
+                    <a href="{{ url_for('treasurer_audit_trail', page=pagination.next_num, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if pagination.has_next else '#' }}" class="page-btn {% if not pagination.has_next %}disabled{% endif %}">Next</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="data-table-container">
+                <div class="section-header-row">
+                    <h3>Fundraiser Fund Management</h3>
+                    <span class="section-caption">{{ fundraiser_pagination.total }} fundraiser{{ '' if fundraiser_pagination.total == 1 else 's' }} matched</span>
+                </div>
+
+                <div class="filter-section">
+                    <form method="GET" class="filter-form">
+                        <input type="hidden" name="page" value="{{ pagination.page }}">
+                        <input type="hidden" name="status" value="{{ status_filter }}">
+                        <input type="hidden" name="search" value="{{ search_query }}">
+                        <input type="hidden" name="recent_page" value="{{ recent_pagination.page }}">
+                        <input type="hidden" name="audit_page" value="{{ audit_pagination.page }}">
+                        <div class="filter-group">
+                            <label for="fund_search">Search Fundraiser</label>
+                            <input type="text" id="fund_search" name="fund_search" value="{{ fund_search_query }}" placeholder="Fundraiser title, category, or ID">
+                        </div>
+                        <div class="filter-group">
+                            <label for="fund_status">Fund Workflow Status</label>
+                            <select id="fund_status" name="fund_status">
+                                <option value="all" {% if fund_status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                                {% for workflow_status in workflow_statuses %}
+                                <option value="{{ workflow_status }}" {% if fund_status_filter == workflow_status %}selected{% endif %}>{{ workflow_status }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="filter-btn">Apply Filters</button>
+                        <a href="{{ url_for('treasurer_audit_trail') }}" class="clear-btn">Clear</a>
+                    </form>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table fundraiser-management-table">
+                        <thead>
+                            <tr>
+                                <th>Fundraiser</th>
+                                <th>Workflow</th>
+                                <th>Funds</th>
+                                <th>Beneficiaries</th>
+                                <th>Latest Activity</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if fundraisers %}
+                                {% for fund in fundraisers %}
+                                <tr class="workflow-pair-row" data-workflow-row-id="fund-{{ fund.fund_id }}">
+                                    <td>
+                                        <div class="fundraiser-cell">
+                                            <div class="fundraiser-title">{{ fund.fund_title }}</div>
+                                            <div class="fundraiser-meta">
+                                                <span>ID: {{ fund.fund_id }}</span>
+                                                <span>{{ fund.fund_category or 'Uncategorized' }}</span>
+                                                <span>Public: {{ fund.fund_status or 'N/A' }}</span>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="workflow-control">
+                                            <span class="status-badge status-{{ (fund.workflow_status or 'pending').lower().replace(' ', '-').replace('/', '') }}">
+                                                {{ fund.workflow_status }}
+                                            </span>
+                                            <select
+                                                class="fund-workflow-select"
+                                                data-fund-id="{{ fund.fund_id }}"
+                                                data-current-status="{{ fund.workflow_status }}"
+                                            >
+                                                {% for workflow_status in fund.workflow_statuses %}
+                                                <option
+                                                    value="{{ workflow_status }}"
+                                                    {% if fund.workflow_status == workflow_status %}selected{% endif %}
+                                                    {% if workflow_status not in fund.allowed_workflow_statuses %}disabled{% endif %}
+                                                >
+                                                    {{ workflow_status }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            <button class="mini-btn fund-workflow-update-btn" data-fund-id="{{ fund.fund_id }}">Update</button>
+                                            <small class="workflow-date">
+                                                {{ fund.workflow_updated_at.strftime('%Y-%m-%d %H:%M') if fund.workflow_updated_at else 'Not updated yet' }}
+                                            </small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="beneficiary-stack">
+                                            <strong>₱{{ "{:,.2f}".format(fund.total_raised or 0) }}</strong>
+                                            <span>{{ fund.paid_donations or 0 }} paid donation{{ '' if (fund.paid_donations or 0) == 1 else 's' }}</span>
+                                            <span>Goal: ₱{{ "{:,.2f}".format(fund.fund_goalamount or 0) }}</span>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="beneficiary-stack">
+                                            <strong>{{ fund.beneficiary_stats.total_beneficiaries }}</strong>
+                                            <span>{{ fund.beneficiary_stats.verified_beneficiaries }} verified</span>
+                                            <span>{{ "{:.1f}".format(fund.progress_percent or 0) }}% of goal raised</span>
+                                        </div>
+                                    </td>
+                                    <td class="donated-at-cell">{{ fund.latest_paid_donation.strftime('%Y-%m-%d %H:%M') if fund.latest_paid_donation else 'No paid donations yet' }}</td>
+                                    <td>
+                                        <div class="action-buttons compact">
+                                            <a href="{{ url_for('fund_transparency_detail', fundraiser_id=fund.fund_id) }}" class="mini-btn secondary">Transparency</a>
+                                            {% if fund.workflow_status == 'Completed' and fund.latest_proof_filename %}
+                                            <a href="{{ url_for('static', filename='uploads/' ~ fund.latest_proof_filename) }}" class="mini-btn secondary" target="_blank" rel="noopener">View Completion Proof</a>
+                                            {% endif %}
+                                            {% if fund.workflow_status == 'Completed' %}
+                                            <form
+                                                class="proof-upload-form"
+                                                method="POST"
+                                                action="{{ url_for('treasurer_upload_completion_proof', fundraiser_id=fund.fund_id) }}"
+                                                enctype="multipart/form-data"
+                                            >
+                                                <input type="file" name="completion_proof" accept="image/png,image/jpeg" required>
+                                                <input type="text" name="proof_note" placeholder="Proof note">
+                                                <button type="submit" class="mini-btn proof-btn">Upload Proof</button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr class="workflow-row workflow-pair-row" data-workflow-row-id="fund-{{ fund.fund_id }}">
+                                    <td colspan="6">
+                                        <div class="workflow-steps" aria-label="Fundraiser workflow progress">
+                                            {% for workflow_status in fund.workflow_statuses %}
+                                            {% set step_index = loop.index0 %}
+                                            <div class="workflow-step {% if step_index < fund.workflow_step %}done{% elif step_index == fund.workflow_step %}current{% endif %}">
+                                                <span class="step-dot"></span>
+                                                <span class="step-label">{{ workflow_status }}</span>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="empty-state">No fundraisers matched the current filter.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if fundraiser_pagination.total_pages > 1 %}
+                {% set start_entry = ((fundraiser_pagination.page - 1) * fundraiser_pagination.per_page) + 1 if fundraiser_pagination.total > 0 else 0 %}
+                {% set end_entry = [fundraiser_pagination.page * fundraiser_pagination.per_page, fundraiser_pagination.total] | min if fundraiser_pagination.total > 0 else 0 %}
+                {% set start_page = [fundraiser_pagination.page - 1, 1] | max %}
+                {% set end_page = [start_page + 2, fundraiser_pagination.total_pages] | min %}
+                {% set start_page = [end_page - 2, 1] | max %}
+                <div class="pagination">
+                    <span class="page-info">
+                        Showing {{ start_entry }} to {{ end_entry }} of {{ fundraiser_pagination.total }} entries
+                    </span>
+
+                    <a href="{{ url_for('treasurer_audit_trail', fund_page=fundraiser_pagination.prev_num, fund_status=fund_status_filter, fund_search=fund_search_query, page=pagination.page, status=status_filter, search=search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if fundraiser_pagination.has_prev else '#' }}" class="page-btn {% if not fundraiser_pagination.has_prev %}disabled{% endif %}">Previous</a>
+                    {% for page_num in range(start_page, end_page + 1) %}
+                        <a href="{{ url_for('treasurer_audit_trail', fund_page=page_num, fund_status=fund_status_filter, fund_search=fund_search_query, page=pagination.page, status=status_filter, search=search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) }}" class="page-btn {% if page_num == fundraiser_pagination.page %}disabled{% endif %}">{{ page_num }}</a>
+                    {% endfor %}
+                    <a href="{{ url_for('treasurer_audit_trail', fund_page=fundraiser_pagination.total_pages, fund_status=fund_status_filter, fund_search=fund_search_query, page=pagination.page, status=status_filter, search=search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if fundraiser_pagination.page < fundraiser_pagination.total_pages else '#' }}" class="page-btn {% if fundraiser_pagination.page >= fundraiser_pagination.total_pages %}disabled{% endif %}">Last</a>
+                    <a href="{{ url_for('treasurer_audit_trail', fund_page=fundraiser_pagination.next_num, fund_status=fund_status_filter, fund_search=fund_search_query, page=pagination.page, status=status_filter, search=search_query, recent_page=recent_pagination.page, audit_page=audit_pagination.page) if fundraiser_pagination.has_next else '#' }}" class="page-btn {% if not fundraiser_pagination.has_next %}disabled{% endif %}">Next</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="data-table-container">
+                <div class="section-header-row">
+                    <h3>Recent Donation Flow</h3>
+                    <span class="section-caption">Latest donation activity linked to campaigns</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table donation-flow-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Reference</th>
+                                <th>Donor</th>
+                                <th>Fundraiser</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_donations %}
+                                {% for donation in recent_donations %}
+                                <tr>
+                                    <td class="donated-at-cell">{{ donation.don_date.strftime('%Y-%m-%d %H:%M') if donation.don_date else 'N/A' }}</td>
+                                    <td>{{ donation.don_refnum or 'N/A' }}</td>
+                                    <td>{{ donation.don_donorname or 'Anonymous' }}</td>
+                                    <td>
+                                        {% if donation.fund_id %}
+                                        <a href="{{ url_for('fund_transparency_detail', fundraiser_id=donation.fund_id) }}" class="table-link">
+                                            {{ donation.fund_title or ('Fundraiser #' ~ donation.fund_id) }}
+                                        </a>
+                                        {% else %}
+                                        General Donation
+                                        {% endif %}
+                                    </td>
+                                    <td class="amount-cell">₱{{ "{:,.2f}".format(donation.don_amount or 0) }}</td>
+                                    <td>{{ donation.don_paymethod or 'N/A' }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ (donation.don_status or 'pending').lower() }}">
+                                            {{ donation.don_status or 'N/A' }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="empty-state">No recent donations are available for the current filter.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if recent_pagination.total_pages > 1 %}
+                {% set start_entry = ((recent_pagination.page - 1) * recent_pagination.per_page) + 1 if recent_pagination.total > 0 else 0 %}
+                {% set end_entry = [recent_pagination.page * recent_pagination.per_page, recent_pagination.total] | min if recent_pagination.total > 0 else 0 %}
+                {% set start_page = [recent_pagination.page - 1, 1] | max %}
+                {% set end_page = [start_page + 2, recent_pagination.total_pages] | min %}
+                {% set start_page = [end_page - 2, 1] | max %}
+                <div class="pagination">
+                    <span class="page-info">
+                        Showing {{ start_entry }} to {{ end_entry }} of {{ recent_pagination.total }} entries
+                    </span>
+
+                    <a href="{{ url_for('treasurer_audit_trail', recent_page=recent_pagination.prev_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, audit_page=audit_pagination.page) if recent_pagination.has_prev else '#' }}" class="page-btn {% if not recent_pagination.has_prev %}disabled{% endif %}">Previous</a>
+                    {% for page_num in range(start_page, end_page + 1) %}
+                        <a href="{{ url_for('treasurer_audit_trail', recent_page=page_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, audit_page=audit_pagination.page) }}" class="page-btn {% if page_num == recent_pagination.page %}disabled{% endif %}">{{ page_num }}</a>
+                    {% endfor %}
+                    <a href="{{ url_for('treasurer_audit_trail', recent_page=recent_pagination.total_pages, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, audit_page=audit_pagination.page) if recent_pagination.page < recent_pagination.total_pages else '#' }}" class="page-btn {% if recent_pagination.page >= recent_pagination.total_pages %}disabled{% endif %}">Last</a>
+                    <a href="{{ url_for('treasurer_audit_trail', recent_page=recent_pagination.next_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, audit_page=audit_pagination.page) if recent_pagination.has_next else '#' }}" class="page-btn {% if not recent_pagination.has_next %}disabled{% endif %}">Next</a>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="data-table-container">
+                <div class="section-header-row">
+                    <h3>Audit Trail</h3>
+                    <span class="section-caption">Status changes, payment confirmations, completion events, and proof uploads</span>
+                </div>
+                <div class="table-container">
+                    <table class="data-table audit-events-table">
+                        <thead>
+                            <tr>
+                                <th>Date and Time</th>
+                                <th>Action</th>
+                                <th>Entity</th>
+                                <th>Status Snapshot</th>
+                                <th>Actor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_audit_events %}
+                                {% for event in recent_audit_events %}
+                                <tr>
+                                    <td>{{ event.event_time.strftime('%Y-%m-%d %H:%M:%S') if event.event_time else 'N/A' }}</td>
+                                    <td>{{ event.action.replace('_', ' ').title() }}</td>
+                                    <td>{{ event.entity_type|title }} #{{ event.entity_id }}</td>
+                                    <td>
+                                        {% set snapshot = event.after_data_parsed or {} %}
+                                        {{ snapshot.get('fund_usage_status') or snapshot.get('don_status') or snapshot.get('workflow_status') or snapshot.get('fund_status') or event.status }}
+                                    </td>
+                                    <td>{{ event.actor_email or event.actor_role or 'System' }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="empty-state">No audit events have been recorded yet.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if audit_pagination.total_pages > 1 %}
+                {% set start_entry = ((audit_pagination.page - 1) * audit_pagination.per_page) + 1 if audit_pagination.total > 0 else 0 %}
+                {% set end_entry = [audit_pagination.page * audit_pagination.per_page, audit_pagination.total] | min if audit_pagination.total > 0 else 0 %}
+                {% set start_page = [audit_pagination.page - 1, 1] | max %}
+                {% set end_page = [start_page + 2, audit_pagination.total_pages] | min %}
+                {% set start_page = [end_page - 2, 1] | max %}
+                <div class="pagination">
+                    <span class="page-info">
+                        Showing {{ start_entry }} to {{ end_entry }} of {{ audit_pagination.total }} entries
+                    </span>
+
+                    <a href="{{ url_for('treasurer_audit_trail', audit_page=audit_pagination.prev_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page) if audit_pagination.has_prev else '#' }}" class="page-btn {% if not audit_pagination.has_prev %}disabled{% endif %}">Previous</a>
+                    {% for page_num in range(start_page, end_page + 1) %}
+                        <a href="{{ url_for('treasurer_audit_trail', audit_page=page_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page) }}" class="page-btn {% if page_num == audit_pagination.page %}disabled{% endif %}">{{ page_num }}</a>
+                    {% endfor %}
+                    <a href="{{ url_for('treasurer_audit_trail', audit_page=audit_pagination.total_pages, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page) if audit_pagination.page < audit_pagination.total_pages else '#' }}" class="page-btn {% if audit_pagination.page >= audit_pagination.total_pages %}disabled{% endif %}">Last</a>
+                    <a href="{{ url_for('treasurer_audit_trail', audit_page=audit_pagination.next_num, page=pagination.page, status=status_filter, search=search_query, fund_page=fundraiser_pagination.page, fund_status=fund_status_filter, fund_search=fund_search_query, recent_page=recent_pagination.page) if audit_pagination.has_next else '#' }}" class="page-btn {% if not audit_pagination.has_next %}disabled{% endif %}">Next</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        function confirmSignOut() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.workflow-pair-row[data-workflow-row-id]').forEach(row => {
+                const syncPairHighlight = isActive => {
+                    const rowId = row.dataset.workflowRowId;
+                    document.querySelectorAll(`.workflow-pair-row[data-workflow-row-id="${rowId}"]`).forEach(pairedRow => {
+                        pairedRow.classList.toggle('workflow-pair-active', isActive);
+                    });
+                };
+
+                row.addEventListener('mouseenter', () => syncPairHighlight(true));
+                row.addEventListener('mouseleave', () => syncPairHighlight(false));
+                row.addEventListener('focusin', () => syncPairHighlight(true));
+                row.addEventListener('focusout', () => syncPairHighlight(false));
+            });
+
+            document.querySelectorAll('.workflow-select').forEach(select => {
+                select.addEventListener('focus', function() {
+                    this.dataset.previousValue = this.value;
+                });
+            });
+
+            document.querySelectorAll('.workflow-update-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const referenceNumber = this.dataset.referenceNumber;
+                    const select = document.querySelector(`.workflow-select[data-reference-number="${referenceNumber}"]`);
+                    const currentStatus = select.dataset.currentStatus;
+                    const nextStatus = select.value;
+
+                    if (currentStatus === nextStatus) {
+                        alert('No workflow status change selected.');
+                        return;
+                    }
+
+                    if (!confirm(`Move this fund from "${currentStatus}" to "${nextStatus}"?`)) {
+                        select.value = currentStatus;
+                        return;
+                    }
+
+                    updateDonationFundStatus(referenceNumber, nextStatus, select, this);
+                });
+            });
+
+            document.querySelectorAll('.fund-workflow-select').forEach(select => {
+                select.addEventListener('focus', function() {
+                    this.dataset.previousValue = this.value;
+                });
+            });
+
+            document.querySelectorAll('.fund-workflow-update-btn').forEach(button => {
+                button.addEventListener('click', function() {
+                    const fundId = this.dataset.fundId;
+                    const select = document.querySelector(`.fund-workflow-select[data-fund-id="${fundId}"]`);
+                    const currentStatus = select.dataset.currentStatus;
+                    const nextStatus = select.value;
+
+                    if (currentStatus === nextStatus) {
+                        alert('No fundraiser workflow status change selected.');
+                        return;
+                    }
+
+                    if (!confirm(`Move this fundraiser from "${currentStatus}" to "${nextStatus}"?`)) {
+                        select.value = currentStatus;
+                        return;
+                    }
+
+                    updateFundWorkflowStatus(fundId, nextStatus, select, this);
+                });
+            });
+        });
+
+        function updateDonationFundStatus(referenceNumber, nextStatus, select, button) {
+            button.disabled = true;
+            button.textContent = 'Saving';
+
+            fetch('/api/treasurer/update-donation-fund-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reference_number: referenceNumber, status: nextStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.error || 'Unable to update fund status.');
+                    select.value = select.dataset.currentStatus;
+                    return;
+                }
+
+                if (data.requires_proof) {
+                    alert('Donation fund usage marked Completed. You can now upload completion proof.');
+                }
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Workflow update error:', error);
+                alert('An error occurred while updating the fund status.');
+                select.value = select.dataset.currentStatus;
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.textContent = 'Update';
+            });
+        }
+
+        function updateFundWorkflowStatus(fundId, nextStatus, select, button) {
+            button.disabled = true;
+            button.textContent = 'Saving';
+
+            fetch('/api/treasurer/update-fund-workflow-status', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fund_id: fundId, status: nextStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.error || 'Unable to update fundraiser workflow status.');
+                    select.value = select.dataset.currentStatus;
+                    return;
+                }
+
+                if (data.requires_proof) {
+                    alert('Fundraiser marked Completed. You can now upload completion proof.');
+                }
+                location.reload();
+            })
+            .catch(error => {
+                console.error('Fund workflow update error:', error);
+                alert('An error occurred while updating the fundraiser workflow status.');
+                select.value = select.dataset.currentStatus;
+            })
+            .finally(() => {
+                button.disabled = false;
+                button.textContent = 'Update';
+            });
+        }
+    </script>
+
+    <style>
+        .page-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1.5rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .page-head p {
+            color: #666;
+            margin-top: 0.4rem;
+            max-width: 780px;
+            line-height: 1.6;
+        }
+
+        .page-head-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+        }
+
+        .action-pill {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 1.1rem;
+            border-radius: 999px;
+            text-decoration: none;
+            background: #916DE8;
+            color: white;
+            font-weight: 600;
+            transition: 0.2s ease;
+        }
+
+        .action-pill.secondary {
+            background: #f1ebff;
+            color: #6f4ed0;
+            border: 1px solid #d9cbff;
+        }
+
+        .action-pill:hover {
+            transform: translateY(-1px);
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 14px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            border: 1px solid #efedf7;
+        }
+
+        .summary-card h3 {
+            font-size: 0.95rem;
+            color: #555;
+            margin-bottom: 0.6rem;
+        }
+
+        .summary-card .amount {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: #2f2858;
+            margin-bottom: 0.3rem;
+        }
+
+        .summary-card .subtitle {
+            color: #777;
+            font-size: 0.88rem;
+            line-height: 1.5;
+        }
+
+        .filter-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+
+        .filter-form {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-group input,
+        .filter-group select {
+            padding: 0.7rem 0.9rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            min-width: 220px;
+            font-size: 0.95rem;
+        }
+
+        .filter-btn,
+        .clear-btn,
+        .page-btn,
+        .mini-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .filter-btn {
+            background: #916DE8;
+            color: white;
+            padding: 0.75rem 1.3rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .clear-btn {
+            background: #f3f0fb;
+            color: #5b5875;
+            padding: 0.60rem 1.1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .filter-btn:hover,
+        .clear-btn:hover,
+        .page-btn:hover,
+        .mini-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .section-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .section-caption {
+            color: #7a7891;
+            font-size: 0.9rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            table-layout: fixed;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            font-size: 0.78rem;
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 0.58rem 0.45rem;
+            text-align: left;
+            vertical-align: top;
+            /* border-bottom: 1px solid #f1f3f4; */
+            white-space: normal;
+            overflow-wrap: anywhere;
+            line-height: 1.35;
+            transition: background-color 0.18s ease;
+        }
+
+        .data-table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            text-transform: titlecase;
+            /* border-bottom: 2px solid #dee2e6; */
+        }
+
+        .data-table tbody tr:nth-child(odd) td {
+            background: #ffffff;
+        }
+
+        .data-table tbody tr:nth-child(even) td {
+            background: #f4f4f6;
+        }
+
+        .data-table tbody tr:hover td {
+            background: #eceff3;
+        }
+
+        .fund-overview-table tbody tr:nth-child(4n + 1) td,
+        .fund-overview-table tbody tr:nth-child(4n + 2) td {
+            background: #ffffff;
+        }
+
+        .fund-overview-table tbody tr:nth-child(4n + 3) td,
+        .fund-overview-table tbody tr:nth-child(4n + 4) td {
+            background: #f6f4f6;
+        }
+
+        .fund-overview-table tbody tr:hover td,
+        .fund-overview-table tbody tr.workflow-pair-active td {
+            background: #ede8f3;
+        }
+
+        .data-table td.amount-cell,
+        .data-table td.donated-at-cell {
+            font-size: 0.68rem;
+            line-height: 1.25;
+            color: #5f5b72;
+        }
+
+        .data-table td.amount-cell {
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .fund-overview-table th:nth-child(1),
+        .fund-overview-table td:nth-child(1) {
+            width: 18%;
+        }
+
+        .fund-overview-table th:nth-child(2),
+        .fund-overview-table td:nth-child(2) {
+            width: 14%;
+        }
+
+        .fund-overview-table th:nth-child(3),
+        .fund-overview-table td:nth-child(3) {
+            width: 15%;
+        }
+
+        .fund-overview-table th:nth-child(4),
+        .fund-overview-table td:nth-child(4) {
+            width: 8%;
+        }
+
+        .fund-overview-table th:nth-child(5),
+        .fund-overview-table td:nth-child(5) {
+            width: 18%;
+        }
+
+        .fund-overview-table th:nth-child(6),
+        .fund-overview-table td:nth-child(6) {
+            width: 10%;
+        }
+
+        .fund-overview-table th:nth-child(7),
+        .fund-overview-table td:nth-child(7) {
+            width: 17%;
+        }
+
+        .donation-flow-table th:nth-child(1),
+        .donation-flow-table td:nth-child(1),
+        .audit-events-table th:nth-child(1),
+        .audit-events-table td:nth-child(1) {
+            width: 15%;
+        }
+
+        .donation-flow-table th:nth-child(2),
+        .donation-flow-table td:nth-child(2) {
+            width: 14%;
+        }
+
+        .donation-flow-table th:nth-child(3),
+        .donation-flow-table td:nth-child(3),
+        .donation-flow-table th:nth-child(4),
+        .donation-flow-table td:nth-child(4) {
+            width: 18%;
+        }
+
+        .donation-flow-table th:nth-child(5),
+        .donation-flow-table td:nth-child(5),
+        .donation-flow-table th:nth-child(6),
+        .donation-flow-table td:nth-child(6),
+        .donation-flow-table th:nth-child(7),
+        .donation-flow-table td:nth-child(7) {
+            width: 9%;
+        }
+
+        .audit-events-table th:nth-child(2),
+        .audit-events-table td:nth-child(2) {
+            width: 25%;
+        }
+
+        .audit-events-table th:nth-child(3),
+        .audit-events-table td:nth-child(3),
+        .audit-events-table th:nth-child(4),
+        .audit-events-table td:nth-child(4) {
+            width: 15%;
+        }
+
+        .audit-events-table th:nth-child(5),
+        .audit-events-table td:nth-child(5) {
+            width: 30%;
+        }
+
+        .fundraiser-cell,
+        .amount-stack,
+        .beneficiary-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 0.18rem;
+        }
+
+        .fundraiser-title {
+            font-weight: 700;
+            color: #2f2858;
+            font-size: 0.82rem;
+        }
+
+        .fundraiser-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem 0.55rem;
+            color: #7a7891;
+            font-size: 0.72rem;
+        }
+
+        .amount-stack strong,
+        .beneficiary-stack strong {
+            color: #2f2858;
+            font-size: 0.8rem;
+        }
+
+        .amount-stack span,
+        .amount-stack small,
+        .beneficiary-stack span,
+        .muted-text {
+            color: #777;
+            font-size: 0.7rem;
+        }
+
+        .mini-progress {
+            width: 100%;
+            max-width: 120px;
+            height: 6px;
+            background: #ece7fb;
+            border-radius: 999px;
+            overflow: hidden;
+            margin-top: 0.1rem;
+        }
+
+        .mini-progress-fill {
+            display: block;
+            height: 100%;
+            background: linear-gradient(90deg, #916DE8, #68c393);
+            border-radius: inherit;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.22rem 0.48rem;
+            border-radius: 999px;
+            font-size: 0.5rem;
+            font-weight: 600;
+        }
+
+        .status-active,
+        .status-paid,
+        .status-approved {
+            background: #dcf4e3;
+            color: #20744a;
+        }
+
+        .status-completed {
+            background: #e8e2ff;
+            color: #6040bf;
+        }
+
+        .status-pending,
+        .status-endorsed,
+        .status-reviewed {
+            background: #fff1cc;
+            color: #8b6518;
+        }
+
+        .status-in-progress {
+            background: #dff2ff;
+            color: #23658c;
+        }
+
+        .status-disapproved,
+        .status-failed,
+        .status-cancelled {
+            background: #fde1e4;
+            color: #a33d4f;
+        }
+
+        .action-buttons.compact {
+            display: flex;
+            flex-direction: column;
+            gap: 0.32rem;
+            align-items: stretch;
+        }
+
+        .workflow-control {
+            display: grid;
+            gap: 0.28rem;
+            align-items: start;
+        }
+
+        .workflow-select {
+            width: 100%;
+            min-width: 0;
+            padding: 0.32rem 0.38rem;
+            border: 1px solid #ded7f3;
+            border-radius: 6px;
+            background: #fff;
+            color: #433d5f;
+            font-size: 0.68rem;
+        }
+
+        .workflow-select:focus {
+            outline: none;
+            border-color: #916DE8;
+            box-shadow: 0 0 0 2px rgba(145, 109, 232, 0.12);
+        }
+
+        .workflow-update-btn:disabled {
+            cursor: wait;
+            opacity: 0.65;
+        }
+
+        .workflow-date {
+            color: #777;
+            font-size: 0.5rem;
+        }
+
+        .workflow-row td {
+            padding-top: 0;
+            border-bottom: 1px solid #888;
+        }
+
+        .workflow-row:hover td,
+        .workflow-row.workflow-pair-active td {
+            background: #ede8f3 !important;
+        }
+
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0.4rem;
+            align-items: center;
+            padding: 0.42rem 0;
+        }
+
+        .workflow-step {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            min-width: 0;
+            color: #8a849b;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+
+        .workflow-step::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 14px;
+            right: -0.4rem;
+            height: 2px;
+            background: #e7e0f7;
+            transform: translateY(-50%);
+            z-index: 0;
+        }
+
+        .workflow-step:last-child::before {
+            display: none;
+        }
+
+        .step-dot {
+            position: relative;
+            z-index: 1;
+            width: 14px;
+            height: 14px;
+            flex: 0 0 14px;
+            border-radius: 50%;
+            background: #d7cfee;
+            border: 2px solid #fbfaff;
+            box-shadow: 0 0 0 1px #d7cfee;
+        }
+
+        .workflow-step.done,
+        .workflow-step.current {
+            color: #4f3fa3;
+        }
+
+        .workflow-step.done::before {
+            background: #916DE8;
+        }
+
+        .workflow-step.done .step-dot,
+        .workflow-step.current .step-dot {
+            background: #916DE8;
+            box-shadow: 0 0 0 1px #916DE8;
+        }
+
+        .workflow-step.current .step-dot {
+            background: #fff;
+            border-color: #916DE8;
+        }
+
+        .step-label {
+            position: relative;
+            z-index: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .mini-btn {
+            background: #916DE8;
+            color: white;
+            border-radius: 6px;
+            padding: 0.36rem 0.46rem;
+            font-size: 0.68rem;
+            font-weight: 600;
+            white-space: normal;
+            line-height: 1.2;
+        }
+
+        .mini-btn.secondary {
+            background: #f3efff;
+            color: #6546c6;
+            border: 1px solid #dacdfb;
+        }
+
+        .proof-upload-form {
+            display: grid;
+            gap: 0.28rem;
+            min-width: 0;
+        }
+
+        .proof-upload-form input[type="file"],
+        .proof-upload-form input[type="text"] {
+            width: 100%;
+            border: 1px solid #ded7f3;
+            border-radius: 6px;
+            padding: 0.32rem 0.38rem;
+            font-size: 0.66rem;
+            color: #4a4663;
+            background: #fff;
+            min-width: 0;
+        }
+
+        .proof-upload-form input[type="file"] {
+            max-width: 100%;
+        }
+
+        .proof-btn {
+            width: 100%;
+        }
+
+        .message {
+            padding: 0.9rem 1.1rem;
+            border-radius: 10px;
+            margin-bottom: 1.2rem;
+            font-weight: 600;
+        }
+
+        .message.success {
+            background: #dcf4e3;
+            color: #20744a;
+            border: 1px solid #bae8c9;
+        }
+
+        .message.error {
+            background: #fde1e4;
+            color: #a33d4f;
+            border: 1px solid #f5c2ca;
+        }
+
+        .table-link {
+            color: #6d4fd0;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .table-link:hover {
+            text-decoration: underline;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #777;
+            padding: 2.5rem 1rem;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .page-btn {
+            background: #916DE8;
+            color: white;
+            padding: 0.7rem 1.1rem;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .page-btn.disabled {
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .page-info {
+            color: #666;
+            font-weight: 500;
+        }
+
+        @media (max-width: 1200px) {
+            .summary-cards {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 900px) {
+            .page-head,
+            .section-header-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 640px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-group input,
+            .filter-group select {
+                min-width: 0;
+                width: 100%;
+            }
+
+            .filter-form {
+                align-items: stretch;
+            }
+
+            .workflow-steps {
+                grid-template-columns: 1fr;
+                gap: 0.28rem;
+            }
+
+            .workflow-step::before {
+                display: none;
+            }
+        }
+    </style>
+</body>
+</html>

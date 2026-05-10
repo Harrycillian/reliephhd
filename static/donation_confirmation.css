@@ -1,0 +1,489 @@
+/*********************************************************/
+/************************* FONTS *************************/
+/*********************************************************/
+
+@font-face {
+  font-family: 'Satoshi';
+  src: url('fonts/Satoshi-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'FuturaMdBT';
+    src: url('fonts/FuturaMdBT-Medium.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+@font-face {
+  font-family: 'Futura Bk BT';
+  src: url('fonts/FuturaBkBT-Book.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+/* ***************************************************** */
+/* ***************************************************** */
+/*********************************************************/
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: url('images/bgg.png') no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+  color: #333;
+}
+
+* {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+input, textarea, select, button, a {
+  font-family: 'Satoshi', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.confirmation-navbar {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  padding: 0.5rem 2rem;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-left, .nav-right {
+  flex: 1;
+}
+
+.nav-right {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.back-btn {
+  text-decoration: none;
+  color: #916DE8;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: color 0.2s ease;
+}
+
+.back-btn:hover {
+  color: #7354cf;
+}
+
+.nav-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logo {
+  height: 85px;
+  width: auto;
+}
+
+.confirmation-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: calc(100vh - 80px);
+  padding: 2rem;
+}
+
+.confirmation-card {
+  background: white;
+  border-radius: 60px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.confirmation-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.success-icon {
+  margin-bottom: 2rem;
+  animation: bounceIn 0.6s ease-out;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.confirmation-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2c3e50;
+  margin-bottom: 0.5rem;
+  animation: fadeInUp 0.8s ease-out;
+}
+
+.confirmation-subtitle {
+  font-size: 0.9rem;
+  color: #7f8c8d;
+  margin-bottom: 2.5rem;
+  animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.donation-details {
+  background: #f8f9fa;
+  border-radius: 25px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  text-align: left;
+  animation: fadeInUp 0.8s ease-out 0.4s both;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.9rem;
+}
+
+.detail-value {
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.detail-value.amount {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #966ec6;
+}
+
+.detail-value.reference {
+  font-family: 'Satoshi', monospace;
+  background: #e9ecef;
+  padding: 0.25rem 0.5rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.detail-value.reference:hover {
+  background: #d1ecf1;
+  transform: scale(1.02);
+}
+
+.copy-icon {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.detail-value.reference:hover .copy-icon {
+  opacity: 1;
+}
+
+.detail-value.status {
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  letter-spacing: 0.5px;
+}
+
+.detail-value.status.paid {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.detail-value.status.pending {
+  background: #fff3cd;
+  color: #856404;
+  border: 1px solid #ffeaa7;
+}
+
+.detail-value.status.failed {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.impact-message {
+  background: #eee7ff;
+  color: #333;
+  border-radius: 30px;
+  padding: 2rem;
+  margin-bottom: 1.3rem;
+  animation: fadeInUp 0.8s ease-out 0.6s both;
+}
+
+.impact-message h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.impact-message p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 0.5rem;
+}
+
+.impact-message p:last-child {
+  margin-bottom: 0;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  animation: fadeInUp 0.8s ease-out 0.8s both;
+}
+
+.btn {
+  flex: 1;
+  padding: 1rem 2rem;
+  border-radius: 25px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: #916DE8;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #7354cf;
+}
+
+.btn-secondary {
+  background: white;
+  color: #916DE8;
+  border: 2px solid #916DE8;  
+}
+
+.btn-secondary:hover {
+  background: #916DE8;
+  color: white;
+}
+
+.btn-receipt {
+  background: white;
+  color: #4CAF50;
+  border: 2px solid #4CAF50;
+  width: 100%;
+}
+
+.btn-receipt:hover {
+  background: #4CAF50;
+  color: white;
+}
+
+.btn-receipt:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.receipt-actions {
+  margin-bottom: 1rem;
+  animation: fadeInUp 0.8s ease-out 0.7s both;
+}
+
+.social-share {
+  animation: fadeInUp 0.8s ease-out 1s both;
+}
+
+.social-share h4 {
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  color: #2c3e50;
+}
+
+.social-share p {
+  color: #7f8c8d;
+  margin-bottom: 1.5rem;
+  font-size: 0.8rem;
+}
+
+.share-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.share-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.share-btn img {
+  width: 20px;
+  height: 20px;
+}
+
+.share-btn.facebook {
+  background: #156cdd;
+  color: white;
+}
+
+.share-btn.facebook:hover {
+  background: #4089e9;
+}
+
+.share-btn.twitter {
+  background: #333;
+  color: white;
+}
+
+.share-btn.twitter:hover {
+  background: #555;
+}
+
+.footer {
+  background: #916DE8;
+  text-align: center;
+  padding: 0.8rem;
+  color: #eee;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 768px) {
+  .confirmation-container {
+    padding: 1rem;
+  }
+  
+  .confirmation-card {
+    padding: 2rem;
+  }
+  
+  .confirmation-title {
+    font-size: 1.5rem;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .share-buttons {
+    flex-direction: column;
+  }
+  
+  .detail-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .detail-value {
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 480px) {
+  .confirmation-card {
+    padding: 1.5rem;
+  }
+  
+  .confirmation-title {
+    font-size: 1.5rem;
+  }
+  
+  .donation-details {
+    padding: 1.2rem;
+  }
+  
+  .impact-message {
+    padding: 1.2rem;
+  }
+}

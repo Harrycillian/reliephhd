@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | MSWDO - Reports & Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='mswdo.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">MSWDO Control Center</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="{{ url_for('signout') }}" class="logout">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('mswdo_dashboard') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('mswdo_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('mswdo_beneficiaries') }}" class="nav-tab">Beneficiaries</a></li>
+                <li><a href="{{ url_for('mswdo_reports') }}" class="nav-tab active">Reports</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="mswdo-section">
+        <div class="page-header">
+            <h1>Reports & Analytics</h1>
+            <p>Comprehensive reporting and transparency tools for relief operations</p>
+        </div>
+
+        <!-- Report Filters -->
+        <div class="report-filters">
+            <div class="filter-group">
+                <label>Report Type:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="reportTypeDropdown">
+                        <span class="dropdown-text">All Reports</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="reportTypeContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="report-financial" data-type="Financial" checked>
+                            <label for="report-financial">Financial Reports</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="report-beneficiary" data-type="Beneficiary" checked>
+                            <label for="report-beneficiary">Beneficiary Reports</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="report-distribution" data-type="Distribution" checked>
+                            <label for="report-distribution">Distribution Reports</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="report-transparency" data-type="Transparency" checked>
+                            <label for="report-transparency">Transparency Reports</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Date Range:</label>
+                <div class="date-range">
+                    <input type="date" id="startDate" class="date-input">
+                    <span class="date-separator">to</span>
+                    <input type="date" id="endDate" class="date-input">
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Barangay:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="barangayDropdown">
+                        <span class="dropdown-text">All Barangays</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="barangayContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="brgy-all" data-barangay="All" checked>
+                            <label for="brgy-all">All Barangays</label>
+                        </div>
+                        {% for barangay in barangays %}
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="brgy-report-{{ loop.index }}" data-barangay="{{ barangay }}" checked>
+                            <label for="brgy-report-{{ loop.index }}">{{ barangay }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <button id="generateReport" class="btn-primary">Generate Report</button>
+            <button id="exportReport" class="btn-secondary">Export PDF</button>
+        </div>
+
+        <div class="kpi-section">
+            <h3>Key Performance Indicators</h3>
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h4>Total Relief Funds</h4>
+                        <p class="kpi-value">₱{{ "{:,}".format(total_funds) }}</p>
+                        <span class="kpi-change positive">+15.3% vs last month</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h4>Families Served</h4>
+                        <p class="kpi-value">{{ families_served }}</p>
+                        <span class="kpi-change positive">+8.7% vs last month</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h4>Response Time</h4>
+                        <p class="kpi-value">{{ response_time }} hours</p>
+                        <span class="kpi-change negative">+2.1 hours vs target</span>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-content">
+                        <h4>Efficiency Rate</h4>
+                        <p class="kpi-value">{{ efficiency_rate }}%</p>
+                        <span class="kpi-change positive">+3.2% vs last month</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="report-sections">
+            <div class="report-section" id="financialReport">
+                <div class="section-header">
+                    <h3>Financial Overview</h3>
+                    <div class="section-actions">
+                        <button class="btn-icon" onclick="printSection('financialReport')" title="Print">Print</button>
+                        <button class="btn-icon" onclick="exportSection('financialReport')" title="Export">Export</button>
+                    </div>
+                </div>
+                <div class="financial-summary">
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h4>Total Donations Received</h4>
+                            <p class="summary-value">₱{{ "{:,}".format(total_donations) }}</p>
+                            <div class="summary-breakdown">
+                                <span>Cash: ₱{{ "{:,}".format(cash_donations) }}</span>
+                                <span>In-Kind: ₱{{ "{:,}".format(inkind_donations) }}</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Funds Allocated</h4>
+                            <p class="summary-value">₱{{ "{:,}".format(allocated_funds) }}</p>
+                            <div class="summary-breakdown">
+                                <span>Food: ₱{{ "{:,}".format(food_allocation) }}</span>
+                                <span>Medical: ₱{{ "{:,}".format(medical_allocation) }}</span>
+                            </div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Funds Distributed</h4>
+                            <p class="summary-value">₱{{ "{:,}".format(distributed_funds) }}</p>
+                            <div class="summary-breakdown">
+                                <span>Remaining: ₱{{ "{:,}".format(remaining_funds) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section" id="beneficiaryReport">
+                <div class="section-header">
+                    <h3>Beneficiary Statistics</h3>
+                    <div class="section-actions">
+                        <button class="btn-icon" onclick="printSection('beneficiaryReport')" title="Print">Print</button>
+                        <button class="btn-icon" onclick="exportSection('beneficiaryReport')" title="Export">Export</button>
+                    </div>
+                </div>
+                <div class="beneficiary-stats">
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <h4>Total Beneficiaries</h4>
+                            <p class="stat-number">{{ total_beneficiaries }}</p>
+                        </div>
+                        <div class="stat-item">
+                            <h4>Verified Beneficiaries</h4>
+                            <p class="stat-number">{{ verified_beneficiaries }}</p>
+                        </div>
+                        <div class="stat-item">
+                            <h4>Pending Verification</h4>
+                            <p class="stat-number">{{ pending_beneficiaries }}</p>
+                        </div>
+                        <div class="stat-item">
+                            <h4>Assistance Coverage</h4>
+                            <p class="stat-number">{{ coverage_percentage }}%</p>
+                        </div>
+                    </div>
+                    <div class="barangay-breakdown">
+                        <h4>Distribution by Barangay</h4>
+                        <div class="breakdown-list">
+                            <div class="breakdown-item">
+                                <span class="barangay-name">San Jose</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 35%"></div>
+                                </div>
+                                <span class="breakdown-value">35% ({{ san_jose_count }} families)</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="barangay-name">Poblacion</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 28%"></div>
+                                </div>
+                                <span class="breakdown-value">28% ({{ poblacion_count }} families)</span>
+                            </div>
+                            <div class="breakdown-item">
+                                <span class="barangay-name">Santa Maria</span>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 37%"></div>
+                                </div>
+                                <span class="breakdown-value">37% ({{ santa_maria_count }} families)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section" id="distributionReport">
+                <div class="section-header">
+                    <h3>Distribution Timeline</h3>
+                    <div class="section-actions">
+                        <button class="btn-icon" onclick="printSection('distributionReport')" title="Print">Print</button>
+                        <button class="btn-icon" onclick="exportSection('distributionReport')" title="Export">Export</button>
+                    </div>
+                </div>
+                <div class="timeline-container">
+                    <div class="timeline-item">
+                        <div class="timeline-date">Jan 15, 2025</div>
+                        <div class="timeline-content">
+                            <h4>Typhoon Relief Distribution</h4>
+                            <p>Emergency food packs distributed to 150 families in San Jose</p>
+                            <span class="timeline-status completed">Completed</span>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Jan 20, 2025</div>
+                        <div class="timeline-content">
+                            <h4>Medical Supplies Distribution</h4>
+                            <p>Medical supplies and medicines distributed to health centers</p>
+                            <span class="timeline-status completed">Completed</span>
+                        </div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="timeline-date">Jan 25, 2025</div>
+                        <div class="timeline-content">
+                            <h4>Housing Materials Distribution</h4>
+                            <p>Construction materials for damaged houses in Poblacion</p>
+                            <span class="timeline-status in-progress">In Progress</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-section" id="transparencyReport">
+                <div class="section-header">
+                    <h3>Transparency Report</h3>
+                    <div class="section-actions">
+                        <button class="btn-icon" onclick="printSection('transparencyReport')" title="Print">Print</button>
+                        <button class="btn-icon" onclick="exportSection('transparencyReport')" title="Export">Export</button>
+                    </div>
+                </div>
+                <div class="transparency-content">
+                    <div class="transparency-grid">
+                        <div class="transparency-item">
+                            <h4>Donor Transparency</h4>
+                            <div class="transparency-stats">
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Public Donations</span>
+                                    <span class="stat-value">₱{{ "{:,}".format(public_donations) }}</span>
+                                </div>
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Anonymous Donations</span>
+                                    <span class="stat-value">₱{{ "{:,}".format(anonymous_donations) }}</span>
+                                </div>
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Corporate Donations</span>
+                                    <span class="stat-value">₱{{ "{:,}".format(corporate_donations) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="transparency-item">
+                            <h4>Accountability Metrics</h4>
+                            <div class="transparency-stats">
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Audit Compliance</span>
+                                    <span class="stat-value">100%</span>
+                                </div>
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Documentation Rate</span>
+                                    <span class="stat-value">98.5%</span>
+                                </div>
+                                <div class="transparency-stat">
+                                    <span class="stat-label">Verification Rate</span>
+                                    <span class="stat-value">95.2%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Actions -->
+        <div class="report-actions">
+            <button class="btn-primary" onclick="generateFullReport()">
+                Generate Full Report
+            </button>
+            <button class="btn-secondary" onclick="exportAllReports()">
+                Export All Reports
+            </button>
+            <!-- <button class="btn-info" onclick="scheduleReport()">
+                Schedule Report
+            </button> -->
+        </div>
+    </section>
+
+    <!-- Report Generation Modal -->
+    <div id="reportModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Generate Custom Report</h3>
+                <span class="close" onclick="closeReportModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="reportForm">
+                    <div class="form-group">
+                        <label for="reportTitle">Report Title</label>
+                        <input type="text" id="reportTitle" placeholder="Enter report title" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportPeriod">Report Period</label>
+                        <select id="reportPeriod" required>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reportFormat">Output Format</label>
+                        <select id="reportFormat" required>
+                            <option value="pdf">PDF</option>
+                            <option value="excel">Excel</option>
+                            <option value="csv">CSV</option>
+                        </select>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeReportModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Generate Report</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH - MSWDO Control Center. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const reportTypeDropdown = document.getElementById('reportTypeDropdown');
+        const reportTypeContent = document.getElementById('reportTypeContent');
+        const barangayDropdown = document.getElementById('barangayDropdown');
+        const barangayContent = document.getElementById('barangayContent');
+        const generateReportBtn = document.getElementById('generateReport');
+        const exportReportBtn = document.getElementById('exportReport');
+
+        reportTypeDropdown.addEventListener('click', function() {
+            reportTypeContent.classList.toggle('show');
+        });
+
+        barangayDropdown.addEventListener('click', function() {
+            barangayContent.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!reportTypeDropdown.contains(e.target)) {
+                reportTypeContent.classList.remove('show');
+            }
+            if (!barangayDropdown.contains(e.target)) {
+                barangayContent.classList.remove('show');
+            }
+        });
+
+        function filterReports() {
+            const selectedTypes = Array.from(document.querySelectorAll('#reportTypeContent input[type="checkbox"]:checked'))
+                .map(cb => cb.dataset.type);
+            
+            const reportSections = document.querySelectorAll('.report-section');
+            reportSections.forEach(section => {
+                const sectionType = section.id.replace('Report', '');
+                if (selectedTypes.includes(sectionType) || selectedTypes.length === 0) {
+                    section.style.display = 'block';
+                } else {
+                    section.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('#reportTypeContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterReports);
+        });
+
+        generateReportBtn.addEventListener('click', function() {
+            document.getElementById('reportModal').style.display = 'block';
+        });
+
+        exportReportBtn.addEventListener('click', function() {
+            alert('Exporting report to PDF...');
+        });
+
+        function closeReportModal() {
+            document.getElementById('reportModal').style.display = 'none';
+        }
+
+        function printSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <html>
+                    <head>
+                        <title>MSWDO Report - ${sectionId}</title>
+                        <style>
+                            body { font-family: Arial, sans-serif; margin: 20px; }
+                            .section-header { border-bottom: 2px solid #916de8; padding-bottom: 10px; margin-bottom: 20px; }
+                            .summary-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+                            .summary-card { border: 1px solid #ddd; padding: 15px; border-radius: 8px; }
+                        </style>
+                    </head>
+                    <body>
+                        ${section.innerHTML}
+                    </body>
+                </html>
+            `);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        function exportSection(sectionId) {
+            alert(`Exporting ${sectionId} to PDF...`);
+        }
+
+        function generateFullReport() {
+            alert('Generating comprehensive report...');
+        }
+
+        function exportAllReports() {
+            alert('Exporting all reports to PDF...');
+        }
+
+        function scheduleReport() {
+            alert('Schedule report functionality coming soon!');
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('reportModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        document.getElementById('reportForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Custom report generated successfully!');
+            closeReportModal();
+        });
+
+        filterReports();
+    </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Fundraiser</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser2.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+      </a>
+      <h1>Share who you’re<br>raising funds for</h1><br>
+      <p>This helps us guide you effectively.</p>
+    </div>
+
+    <div class="right-panel">
+      <div class="top-bar">
+        {% if not session.get('email') %}
+          <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+          <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="middle">
+        <div class="progress-indicator small">
+          <div class="progress-step small completed"><span>1</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small active"><span>2</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>3</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>4</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>5</span></div>
+        </div>
+        <div class="content">
+          <h2>Who are you fundraising for?</h2>
+          <form method="POST" action="{{ url_for('start_fundraiser_2') }}" id="fundraiserForForm">
+            <div class="options">
+              <label class="option" title="Choose this if you're raising funds for your own personal emergency or needs. Funds will be sent directly to your bank account.">
+                <input type="radio" name="fundraiser_for" value="Yourself">
+                <img src="{{ url_for('static', filename='images/yourselfz.png') }}" class="yourself" alt="Yourself icon">
+                <div class="option-text">
+                  <span class="title">Yourself</span>
+                  <span class="subtitle">Funds are delivered to your bank account for your own use</span>
+                </div>
+              </label>
+
+              <!-- <label class="option">
+                <input type="radio" name="fundraiser_for" value="Someone else">
+                <img src="{{ url_for('static', filename='images/others.png') }}" class="others" alt="Others icon">
+                <div class="option-text">
+                  <span class="title">Someone else</span>
+                  <span class="subtitle">You’ll invite a beneficiary to receive funds or distribute them yourself</span>
+                </div>
+              </label> -->
+
+              <label class="option" title="Choose this if you're raising funds for a registered charity or nonprofit organization. Funds will be sent directly to the organization.">
+                <input type="radio" name="fundraiser_for" value="Charity">
+                <img src="{{ url_for('static', filename='images/charity.png') }}" class="charity" alt="Charity icon">
+                <div class="option-text">
+                  <span class="title">Charity</span>
+                  <span class="subtitle">Funds are delivered to your chosen nonprofit for you</span>
+                </div>
+              </label>
+            </div>
+
+            <div class="bottom-bar">
+              <a href="{{ url_for('start_fundraiser') }}" class="back-btn">←</a>
+              <button type="submit" class="continue-btn">Continue</button>
+            </div>
+          </form>
+          <script>
+          document.getElementById('fundraiserForForm').addEventListener('submit', function(e) {
+            const checked = document.querySelector('input[name="fundraiser_for"]:checked');
+            if (!checked) {
+              e.preventDefault();
+              alert('Please select who you are fundraising for before continuing.');
+            } else if (checked.value === 'Charity') {
+              e.preventDefault();
+              window.location.href = "{{ url_for('start_fundraiser_21') }}";
+            }
+          });
+          </script>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

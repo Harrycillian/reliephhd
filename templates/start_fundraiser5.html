@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Fundraiser</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser5.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+
+  <div class="container">
+    <div class="left-panel">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+      </a>
+      <h1>Tell donors why you’re fundraising</h1><br>
+      <ul class="tips">
+        <li>Introduce who you're raising money for and your connection to them</li>
+        <li>Share specific details that will help donors connect with your cause</li>
+        <li>Keep it heartfelt and easy to understand</li>
+      </ul>
+    </div>
+
+    <div class="right-panel">
+      <div class="top-bar">
+        {% if not session.get('email') %}
+          <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+          <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="middle">
+        <div class="progress-indicator small">
+          <div class="progress-step small completed"><span>1</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>2</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>3</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small active"><span>4</span></div>
+        </div>
+        <div class="content">
+          <form method="POST" action="{{ url_for('start_fundraiser_5') }}" id="fundraiserForm">
+            <div class="titlez">
+              <label for="fund_title" class="input-label">Give your fundraiser a title</label>
+            </div>
+            <input type="text" id="fund_title" name="fund_title" class="input-field" 
+                  placeholder='Give your fundraiser a clear title (e.g. "School Supplies for Kids in Flooded Areas")'
+                  maxlength="80" required
+                  title="Create a compelling title that clearly describes your cause. Keep it under 80 characters and make it specific and emotional to attract donors.">
+            <div class="title-suggestions" id="titleSuggestions" hidden>
+              <div class="title-suggestions-header">Suggested titles</div>
+              <div class="title-suggestions-list" id="titleSuggestionsList"></div>
+            </div>
+
+            <div class="label-generate-row">
+              <label for="fund_story" class="input-label">Tell your story</label>
+              <a href="#" class="generate_story">Generate Description</a>
+            </div>
+            <textarea id="fund_story" name="fund_story" class="textarea-field auto-expand" rows="1" 
+                  placeholder="Hi, my name is Andrez and I'm fundraising for..." required
+                  title="Share your story in detail. Include who you're helping, why it matters, and how donations will be used. Aim for at least 50 words to create a compelling narrative."></textarea>
+
+            <div class="bottom-bar">
+              <a href="{{ url_for('start_fundraiser_4') }}" class="back-btn">←</a>
+              <button type="submit" class="continue-btn">Complete Fundraiser</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('fundraiserForm').addEventListener('submit', function(e) {
+      const textarea = document.getElementById('fund_story');
+      const minWords = 50;
+      const wordCount = textarea.value.trim().split(/\s+/).filter(Boolean).length;
+      if (wordCount < minWords) {
+        e.preventDefault();
+        alert('Please enter at least ' + minWords + ' words in your story.');
+      }
+    });
+
+    document.querySelector('.generate_story').addEventListener('click', async function(e) {
+      e.preventDefault();
+      const titleInput = document.getElementById('fund_title');
+      const storyTextarea = document.getElementById('fund_story');
+      const fundTitle = titleInput.value.trim();
+      if (!fundTitle) {
+        alert('Please enter a fundraiser title first.');
+        titleInput.focus();
+        return;
+      }
+      storyTextarea.value = 'Generating story...';
+      try {
+        const response = await fetch('/gen_story', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fund_title: fundTitle })
+        });
+        const data = await response.json();
+        if (data.story) {
+          storyTextarea.value = data.story;
+        } else {
+          storyTextarea.value = '';
+          alert(data.error || 'Failed to generate story.');
+        }
+      } catch (err) {
+        storyTextarea.value = '';
+        alert('Error generating story.');
+      }
+    });
+
+    const titleInputEl = document.getElementById('fund_title');
+    const titleSuggestions = document.getElementById('titleSuggestions');
+    const titleSuggestionsList = document.getElementById('titleSuggestionsList');
+    let titleSuggestionTimeout;
+    let latestSuggestionRequest = 0;
+
+    function clearTitleSuggestions() {
+      titleSuggestions.hidden = true;
+      titleSuggestionsList.innerHTML = '';
+    }
+
+    function renderTitleSuggestions(suggestions) {
+      if (!suggestions.length) {
+        clearTitleSuggestions();
+        return;
+      }
+      titleSuggestionsList.innerHTML = '';
+      suggestions.slice(0, 3).forEach((suggestion) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'title-suggestion-chip';
+        button.textContent = suggestion;
+        button.addEventListener('click', function() {
+          titleInputEl.value = suggestion;
+          titleInputEl.focus();
+        });
+        titleSuggestionsList.appendChild(button);
+      });
+      titleSuggestions.hidden = false;
+    }
+
+    async function fetchTitleSuggestions() {
+      const currentTitle = titleInputEl.value.trim();
+      if (!currentTitle) {
+        clearTitleSuggestions();
+        return;
+      }
+
+      const requestId = ++latestSuggestionRequest;
+      titleSuggestions.hidden = false;
+      titleSuggestionsList.innerHTML = '<div class="title-suggestions-loading">Generating suggestions...</div>';
+
+      try {
+        const resp = await fetch('/gen_title', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: currentTitle })
+        });
+        const data = await resp.json();
+        if (requestId !== latestSuggestionRequest) {
+          return;
+        }
+        if (resp.ok && Array.isArray(data.suggestions) && data.suggestions.length) {
+          renderTitleSuggestions(data.suggestions);
+        } else {
+          clearTitleSuggestions();
+        }
+      } catch (e) {
+        if (requestId === latestSuggestionRequest) {
+          clearTitleSuggestions();
+        }
+      }
+    }
+
+    titleInputEl.addEventListener('input', function() {
+      window.clearTimeout(titleSuggestionTimeout);
+      if (!titleInputEl.value.trim()) {
+        clearTitleSuggestions();
+        return;
+      }
+      titleSuggestionTimeout = window.setTimeout(fetchTitleSuggestions, 450);
+    });
+  </script>
+
+</body>
+</html>

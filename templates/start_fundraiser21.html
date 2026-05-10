@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Fundraiser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser2.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <div class="container">
+    <div class="left-panel">
+        <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+        </a>
+        <h1>Share who you’re<br>raising funds for</h1><br>
+        <p>This helps us guide you effectively.</p>
+    </div>
+
+    <div class="right-panel">
+        <div class="top-bar">
+        {% if not session.get('email') %}
+            <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+            <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+            </a>
+        {% endif %}
+        </div>
+
+                <div class="middle">
+                <div class="progress-indicator small">
+                    <div class="progress-step small completed"><span>1</span></div>
+                    <div class="progress-line small active"></div>
+                    <div class="progress-step small active"><span>2</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>3</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>4</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>5</span></div>
+                </div>
+                <div class="content">
+            <h2>Select an organization</h2>
+            <form method="POST" action="{{ url_for('start_fundraiser_21') }}" id="fundraiserForForm">
+                <div class="org-list">
+                    <select name="fundraiser_for" class="org-select">
+                        <option value="" disabled selected>Select</option>
+                        <option value="People Power Volunteers for Reform - Pila"><img src="{{ url_for('static', filename='images/ppvr.jpg') }}" alt="PPVR - Pila">People Power Volunteers for Reform - Pila</option>
+                        <option value="Aktibong Lider at Alagad ng Bayan - Pila">Aktibong Lider at Alagad ng Bayan - Pila</option>
+                        <option value="Organization 3">Organization 3</option>
+                        <option value="Organization 4">Organization 4</option>
+                        <option value="Organization 5">Organization 5</option>
+                    </select>
+                </div>
+                <div class="bottom-bar">
+                    <a href="{{ url_for('start_fundraiser_2') }}" class="back-btn">←</a>
+                    <button type="submit" class="continue-btn">Continue</button>
+                </div>
+            </form>
+
+        <script>
+            document.getElementById('fundraiserForForm').addEventListener('submit', function(e) {
+                const selected = document.querySelector('select[name="fundraiser_for"]');
+                if (!selected.value) {
+                    e.preventDefault();
+                    alert('Please select an organization before continuing.');
+                }
+            });
+        </script>
+        </div>
+    </div>
+
+</body>
+</html>

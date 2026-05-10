@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | MSWDO - Beneficiary Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='mswdo.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">MSWDO Control Center</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="{{ url_for('signout') }}" class="logout">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('mswdo_dashboard') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('mswdo_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('mswdo_beneficiaries') }}" class="nav-tab active">Beneficiaries</a></li>
+                <li><a href="{{ url_for('mswdo_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="mswdo-section">
+        <div class="page-header">
+            <h1>Beneficiary Management</h1>
+            <p>Manage and coordinate relief beneficiaries and their assistance needs</p>
+        </div>
+
+        <!-- Beneficiary Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Total Beneficiaries</h3>
+                    <p class="stat-value">{{ total_beneficiaries }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Pending Verification</h3>
+                    <p class="stat-value">{{ pending_verification }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Verified Today</h3>
+                    <p class="stat-value">{{ verified_today }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Assistance Coverage</h3>
+                    <p class="stat-value">{{ coverage_rate }}%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+            <button class="action-btn primary" onclick="openAddBeneficiaryModal()">
+                Add New Beneficiary
+            </button>
+            <button class="action-btn success" onclick="openBulkImportModal()">
+                Bulk Import
+            </button>
+            <button class="action-btn info" onclick="openVerificationModal()">
+                Batch Verification
+            </button>
+            <button class="action-btn warning" onclick="exportBeneficiaries()">
+                Export Data
+            </button>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label>Status Filter:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="statusFilterDropdown">
+                        <span class="dropdown-text">All Status</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="statusFilterContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-pending" data-status="Pending" checked>
+                            <label for="status-pending">Pending</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-verified" data-status="Verified" checked>
+                            <label for="status-verified">Verified</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-active" data-status="Active" checked>
+                            <label for="status-active">Active</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-completed" data-status="Completed" checked>
+                            <label for="status-completed">Completed</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Assistance Type:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="typeFilterDropdown">
+                        <span class="dropdown-text">All Types</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="typeFilterContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-food" data-type="Food" checked>
+                            <label for="type-food">Food Assistance</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-medical" data-type="Medical" checked>
+                            <label for="type-medical">Medical Assistance</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-housing" data-type="Housing" checked>
+                            <label for="type-housing">Housing Assistance</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-cash" data-type="Cash" checked>
+                            <label for="type-cash">Cash Assistance</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Barangay:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="barangayFilterDropdown">
+                        <span class="dropdown-text">All Barangays</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="barangayFilterContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="brgy-all" data-barangay="All" checked>
+                            <label for="brgy-all">All Barangays</label>
+                        </div>
+                        {% for barangay in barangays %}
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="brgy-{{ loop.index }}" data-barangay="{{ barangay }}" checked>
+                            <label for="brgy-{{ loop.index }}">{{ barangay }}</label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label for="searchBeneficiaries">Search:</label>
+                <input type="text" id="searchBeneficiaries" class="filter-input" placeholder="Search by name, ID, or address...">
+            </div>
+
+            <div class="filter-group">
+                <button id="clearFilters" class="clear-btn">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Beneficiaries Table -->
+        <div class="table-container">
+            <table class="beneficiaries-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Family Size</th>
+                        <th>Barangay</th>
+                        <th>Assistance Type</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Date Registered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for beneficiary in beneficiaries %}
+                    <tr class="beneficiary-row" data-status="{{ beneficiary.status }}" data-type="{{ beneficiary.assistance_type }}" data-barangay="{{ beneficiary.barangay }}">
+                        <td>
+                            <span class="beneficiary-id">#{{ beneficiary.id }}</span>
+                        </td>
+                        <td>
+                            <div class="beneficiary-info">
+                                <span class="beneficiary-name">{{ beneficiary.name }}</span>
+                                <span class="beneficiary-contact">{{ beneficiary.contact }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="family-size">{{ beneficiary.family_size }} members</span>
+                        </td>
+                        <td>
+                            <span class="barangay">{{ beneficiary.barangay }}</span>
+                        </td>
+                        <td>
+                            <span class="assistance-type-badge type-{{ beneficiary.assistance_type.lower() }}">{{ beneficiary.assistance_type }}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ beneficiary.status.lower() }}">{{ beneficiary.status }}</span>
+                        </td>
+                        <td>
+                            <span class="priority-badge priority-{{ beneficiary.priority.lower() }}">{{ beneficiary.priority }}</span>
+                        </td>
+                        <td>
+                            <span class="date">{{ beneficiary.date_registered.strftime('%b %d, %Y') }}</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn view-btn" data-beneficiary-id="{{ beneficiary.id }}" data-action="view" title="View Details">
+                                    View
+                                </button>
+                                <button class="action-btn edit-btn" data-beneficiary-id="{{ beneficiary.id }}" data-action="edit" title="Edit">
+                                    Edit
+                                </button>
+                                <button class="action-btn verify-btn" data-beneficiary-id="{{ beneficiary.id }}" data-action="verify" title="Verify">
+                                    Verify
+                                </button>
+                                <button class="action-btn assist-btn" data-beneficiary-id="{{ beneficiary.id }}" data-action="assist" title="Provide Assistance">
+                                    Assist
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button class="page-btn" onclick="previousPage()">← Previous</button>
+            <span class="page-info">Page 1 of 8</span>
+            <button class="page-btn" onclick="nextPage()">Next →</button>
+        </div>
+    </section>
+
+    <!-- Add Beneficiary Modal -->
+    <div id="addBeneficiaryModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Add New Beneficiary</h3>
+                <span class="close" onclick="closeAddBeneficiaryModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addBeneficiaryForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="beneficiaryName">Full Name *</label>
+                            <input type="text" id="beneficiaryName" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="beneficiaryContact">Contact Number *</label>
+                            <input type="tel" id="beneficiaryContact" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="beneficiaryAddress">Address *</label>
+                            <input type="text" id="beneficiaryAddress" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="beneficiaryBarangay">Barangay *</label>
+                            <select id="beneficiaryBarangay" required>
+                                <option value="">Select Barangay</option>
+                                {% for barangay in barangays %}
+                                <option value="{{ barangay }}">{{ barangay }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="familySize">Family Size *</label>
+                            <input type="number" id="familySize" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="assistanceType">Assistance Type *</label>
+                            <select id="assistanceType" required>
+                                <option value="">Select Type</option>
+                                <option value="Food">Food Assistance</option>
+                                <option value="Medical">Medical Assistance</option>
+                                <option value="Housing">Housing Assistance</option>
+                                <option value="Cash">Cash Assistance</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="priorityLevel">Priority Level</label>
+                            <select id="priorityLevel">
+                                <option value="Low">Low</option>
+                                <option value="Medium">Medium</option>
+                                <option value="High">High</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="emergencyContact">Emergency Contact</label>
+                            <input type="tel" id="emergencyContact">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="specialNeeds">Special Needs/Notes</label>
+                        <textarea id="specialNeeds" placeholder="Any special requirements or notes..." rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeAddBeneficiaryModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Add Beneficiary</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Beneficiary Modal -->
+    <div id="viewBeneficiaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Beneficiary Details</h3>
+                <span class="close" onclick="closeViewBeneficiaryModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="beneficiary-details">
+                    <div class="detail-section">
+                        <h4>Personal Information</h4>
+                        <div class="detail-row">
+                            <span class="detail-label">Name:</span>
+                            <span class="detail-value" id="view-name">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Contact:</span>
+                            <span class="detail-value" id="view-contact">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Address:</span>
+                            <span class="detail-value" id="view-address">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Barangay:</span>
+                            <span class="detail-value" id="view-barangay">-</span>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Assistance Information</h4>
+                        <div class="detail-row">
+                            <span class="detail-label">Family Size:</span>
+                            <span class="detail-value" id="view-family-size">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Assistance Type:</span>
+                            <span class="detail-value" id="view-assistance-type">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Priority:</span>
+                            <span class="detail-value" id="view-priority">-</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value" id="view-status">-</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeViewBeneficiaryModal()">Close</button>
+                    <button class="btn-primary" onclick="editBeneficiary()">Edit Details</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH - MSWDO Control Center. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Filter functionality
+        const statusFilterDropdown = document.getElementById('statusFilterDropdown');
+        const statusFilterContent = document.getElementById('statusFilterContent');
+        const typeFilterDropdown = document.getElementById('typeFilterDropdown');
+        const typeFilterContent = document.getElementById('typeFilterContent');
+        const barangayFilterDropdown = document.getElementById('barangayFilterDropdown');
+        const barangayFilterContent = document.getElementById('barangayFilterContent');
+        const searchInput = document.getElementById('searchBeneficiaries');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+
+        // Dropdown toggles
+        statusFilterDropdown.addEventListener('click', function() {
+            statusFilterContent.classList.toggle('show');
+        });
+
+        typeFilterDropdown.addEventListener('click', function() {
+            typeFilterContent.classList.toggle('show');
+        });
+
+        barangayFilterDropdown.addEventListener('click', function() {
+            barangayFilterContent.classList.toggle('show');
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!statusFilterDropdown.contains(e.target)) {
+                statusFilterContent.classList.remove('show');
+            }
+            if (!typeFilterDropdown.contains(e.target)) {
+                typeFilterContent.classList.remove('show');
+            }
+            if (!barangayFilterDropdown.contains(e.target)) {
+                barangayFilterContent.classList.remove('show');
+            }
+        });
+
+        // Filter table rows
+        function filterTable() {
+            const statusCheckboxes = document.querySelectorAll('#statusFilterContent input[type="checkbox"]:checked');
+            const typeCheckboxes = document.querySelectorAll('#typeFilterContent input[type="checkbox"]:checked');
+            const barangayCheckboxes = document.querySelectorAll('#barangayFilterContent input[type="checkbox"]:checked');
+            const searchValue = searchInput.value.toLowerCase();
+            
+            const selectedStatuses = Array.from(statusCheckboxes).map(cb => cb.dataset.status);
+            const selectedTypes = Array.from(typeCheckboxes).map(cb => cb.dataset.type);
+            const selectedBarangays = Array.from(barangayCheckboxes).map(cb => cb.dataset.barangay);
+            
+            const rows = document.querySelectorAll('.beneficiary-row');
+            rows.forEach(row => {
+                const status = row.dataset.status;
+                const type = row.dataset.type;
+                const barangay = row.dataset.barangay;
+                const name = row.querySelector('.beneficiary-name').textContent.toLowerCase();
+                const id = row.querySelector('.beneficiary-id').textContent.toLowerCase();
+                
+                const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(status);
+                const typeMatch = selectedTypes.length === 0 || selectedTypes.includes(type);
+                const barangayMatch = selectedBarangays.length === 0 || selectedBarangays.includes(barangay) || selectedBarangays.includes('All');
+                const searchMatch = name.includes(searchValue) || id.includes(searchValue);
+                
+                if (statusMatch && typeMatch && barangayMatch && searchMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Event listeners
+        document.querySelectorAll('#statusFilterContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterTable);
+        });
+
+        document.querySelectorAll('#typeFilterContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterTable);
+        });
+
+        document.querySelectorAll('#barangayFilterContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterTable);
+        });
+
+        searchInput.addEventListener('input', filterTable);
+
+        clearFiltersBtn.addEventListener('click', function() {
+            document.querySelectorAll('#statusFilterContent input[type="checkbox"]').forEach(cb => cb.checked = true);
+            document.querySelectorAll('#typeFilterContent input[type="checkbox"]').forEach(cb => cb.checked = true);
+            document.querySelectorAll('#barangayFilterContent input[type="checkbox"]').forEach(cb => cb.checked = true);
+            searchInput.value = '';
+            filterTable();
+        });
+
+        // Modal functions
+        function openAddBeneficiaryModal() {
+            document.getElementById('addBeneficiaryModal').style.display = 'block';
+        }
+
+        function closeAddBeneficiaryModal() {
+            document.getElementById('addBeneficiaryModal').style.display = 'none';
+        }
+
+        function viewBeneficiary(beneficiaryId) {
+            // In a real implementation, fetch beneficiary details via API
+            document.getElementById('viewBeneficiaryModal').style.display = 'block';
+        }
+
+        function closeViewBeneficiaryModal() {
+            document.getElementById('viewBeneficiaryModal').style.display = 'none';
+        }
+
+        function editBeneficiary(beneficiaryId) {
+            alert('Edit beneficiary functionality coming soon!');
+        }
+
+        function verifyBeneficiary(beneficiaryId) {
+            if (confirm('Mark this beneficiary as verified?')) {
+                alert('Beneficiary verified successfully!');
+            }
+        }
+
+        function provideAssistance(beneficiaryId) {
+            alert('Provide assistance functionality coming soon!');
+        }
+
+        function openBulkImportModal() {
+            alert('Bulk import functionality coming soon!');
+        }
+
+        function openVerificationModal() {
+            alert('Batch verification functionality coming soon!');
+        }
+
+        function exportBeneficiaries() {
+            alert('Export functionality coming soon!');
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const addModal = document.getElementById('addBeneficiaryModal');
+            const viewModal = document.getElementById('viewBeneficiaryModal');
+            if (event.target === addModal) {
+                addModal.style.display = 'none';
+            }
+            if (event.target === viewModal) {
+                viewModal.style.display = 'none';
+            }
+        }
+
+        // Form submission
+        document.getElementById('addBeneficiaryForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Beneficiary added successfully!');
+            closeAddBeneficiaryModal();
+        });
+
+        // Action button event listeners
+        document.addEventListener('click', function(e) {
+            if (e.target.matches('.action-btn[data-action]')) {
+                const beneficiaryId = e.target.getAttribute('data-beneficiary-id');
+                const action = e.target.getAttribute('data-action');
+                
+                switch(action) {
+                    case 'view':
+                        viewBeneficiary(beneficiaryId);
+                        break;
+                    case 'edit':
+                        editBeneficiary(beneficiaryId);
+                        break;
+                    case 'verify':
+                        verifyBeneficiary(beneficiaryId);
+                        break;
+                    case 'assist':
+                        provideAssistance(beneficiaryId);
+                        break;
+                }
+            }
+        });
+
+        // Pagination functions
+        function previousPage() {
+            alert('Previous page functionality coming soon!');
+        }
+
+        function nextPage() {
+            alert('Next page functionality coming soon!');
+        }
+    </script>
+</body>
+</html>

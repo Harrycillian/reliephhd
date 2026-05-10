@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ReliePH | Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='profile_bill.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}">< Back to Home</a>
+        </div>
+        
+        <div class="nav-center">
+            <a href="{{ url_for('index') }}" class="home">
+                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+            </a>
+        </div>
+        
+        <div class="nav-right">
+            <a href="#" class="" style="color: transparent;">About</a>
+        </div>
+    </header>
+
+    <div class="divide">
+        <div class="leftbar">
+            <form class="sidebar" id="profile-nav-form">
+                <div class="hehe">
+                    <img src="{{ url_for('static', filename='images/profile.png') }}" alt="User Icon">
+                    <p>{{ user.name }}</p>
+                </div>
+                <label>
+                    <input type="radio" name="profile_nav" value="fundraisers">
+                    <span>Fundraisers</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="donations">
+                    <span>Donations</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="billing" checked>
+                    <span>Billing</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="account">
+                    <span>Account</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="signout" class="signout">
+                    <span>Sign Out</span>
+                </label>
+            </form>
+        </div>
+
+        <div class="mainscreen">
+            <h2>Billing</h2>
+
+            <div class="hist">
+                <h3>Payment History</h3>
+                <div class="table_wrap">
+                    <table class="bill_table">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th>Status</th>
+                                <th>Amount</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if payments and payments|length > 0 %}
+                                {% for p in payments %}
+                                <tr>
+                                    <td>{{ p.don_refnum }}</td>
+                                    <td>{{ p.don_status }}</td>
+                                    <td>₱{{ '%.2f'|format(p.don_amount) }}</td>
+                                    <td>{{ p.don_date.strftime('%b %d, %Y %I:%M %p') if p.don_date else '' }}</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="empty_row">No payments found.</td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="meths">
+                <h3>Payment Methods</h3>
+                <div class="methods_header_actions">
+                    <button class="btn_small primary" id="openAddMethod">Add Payment Method</button>
+                </div>
+                {% if methods and methods|length > 0 %}
+                <div class="methods_list">
+                    {% for m in methods %}
+                    <div class="method_card">
+                        <div class="method_header">
+                            <div class="method_title">
+                                <span class="method_type">{{ m.method_type }}</span>
+                                {% if m.is_default %}
+                                <span class="badge badge-default">Default</span>
+                                {% endif %}
+                            </div>
+                            <div class="method_actions">
+                                {% if not m.is_default %}
+                                <button class="btn_small set_default" data-id="{{ m.id }}">Set Default</button>
+                                {% endif %}
+                                <button class="btn_small danger delete_method" data-id="{{ m.id }}">Delete</button>
+                            </div>
+                        </div>
+                        <div class="method_body">
+                            <div class="method_row"><span class="label">Account Name:</span> <span class="value">{{ m.account_name }}</span></div>
+                            <div class="method_row"><span class="label">Account Number:</span> <span class="value">{{ m.account_number }}</span></div>
+                            <div class="method_row subtle"><span class="label">Added:</span> <span class="value">{{ m.date_added.strftime('%b %d, %Y %I:%M %p') if m.date_added else '' }}</span></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="table_wrap">
+                    <div class="empty_row">No payment methods saved.</div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Add Payment Method Modal -->
+            <div class="add_method_modal" style="display:none;">
+                <div class="add_method_frame">
+                    <button id="closeAddMethod" class="close_add_method">
+                        <img src="{{ url_for('static', filename='images/close.png') }}" alt="Close" class="close_icon">
+                    </button>
+                    <div class="add_method_cont">
+                        <h3>Add Payment Method</h3>
+                        <form id="addMethodForm">
+                            <div class="form_row">
+                                <label for="method_type">Method</label>
+                                <select id="method_type" name="method_type" required>
+                                    <option value="GCash">GCash</option>
+                                </select>
+                            </div>
+                            <div class="form_row">
+                                <label for="account_name">Account Name</label>
+                                <input type="text" id="account_name" name="account_name" required />
+                            </div>
+                            <div class="form_row">
+                                <label for="account_number">Account Number</label>
+                                <input type="text" id="account_number" name="account_number" required />
+                            </div>
+                            <div class="form_row_inline">
+                                <label class="checkbox_label"><input type="checkbox" id="is_default" /> Set as default</label>
+                            </div>
+                            <div class="form_actions">
+                                <button type="submit" class="btn_small primary">Save</button>
+                                <button type="button" id="cancelAddMethod" class="btn_small">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('profile-nav-form').addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'fundraisers') {
+                window.location.href = "{{ url_for('profile_funds') }}";
+            } else if (value === 'donations') {
+                window.location.href = "{{ url_for('profile_dons') }}";
+            } else if (value === 'billing') {
+                window.location.href = "{{ url_for('profile_bill') }}";
+            } else if (value === 'account') {
+                window.location.href = "{{ url_for('profile_acc') }}";
+            } else if (value === 'signout') {
+                if (confirm('Are you sure you want to sign out?')) {
+                    window.location.href = "{{ url_for('signout') }}";
+                }
+            }
+        });
+
+        // Payment methods actions
+        document.addEventListener('click', async function(e) {
+            if (e.target.classList.contains('delete_method')) {
+                const id = e.target.getAttribute('data-id');
+                if (!confirm('Delete this payment method?')) return;
+                try {
+                    const resp = await fetch(`/payment-methods/${id}/delete`, { method: 'POST' });
+                    const data = await resp.json();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Failed to delete');
+                    }
+                } catch (err) {
+                    alert('Error deleting method');
+                }
+            }
+
+            if (e.target.classList.contains('set_default')) {
+                const id = e.target.getAttribute('data-id');
+                try {
+                    const resp = await fetch(`/payment-methods/${id}/set-default`, { method: 'POST' });
+                    const data = await resp.json();
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Failed to set default');
+                    }
+                } catch (err) {
+                    alert('Error setting default method');
+                }
+            }
+        });
+
+        // Add Payment Method modal handlers
+        const addModal = document.querySelector('.add_method_modal');
+        document.getElementById('openAddMethod').addEventListener('click', function() {
+            addModal.style.display = 'block';
+        });
+        document.getElementById('closeAddMethod').addEventListener('click', function() {
+            addModal.style.display = 'none';
+        });
+        document.getElementById('cancelAddMethod').addEventListener('click', function() {
+            addModal.style.display = 'none';
+        });
+
+        document.getElementById('addMethodForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const payload = {
+                method_type: document.getElementById('method_type').value,
+                account_name: document.getElementById('account_name').value.trim(),
+                account_number: document.getElementById('account_number').value.trim(),
+                is_default: document.getElementById('is_default').checked
+            };
+            if (!payload.account_name || !payload.account_number) return;
+            try {
+                const resp = await fetch('/payment-methods', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    addModal.style.display = 'none';
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to add method');
+                }
+            } catch (err) {
+                alert('Error adding payment method');
+            }
+        });
+    </script>
+</body>
+</html>

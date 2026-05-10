@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Settings</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab active">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="settings-section">
+        <!-- <div class="settings-stats">
+            <div class="settings-stat-card">
+                <h3>System Status</h3>
+                <p class="settings-stat-number">Online</p>
+            </div>
+            <div class="settings-stat-card">
+                <h3>Last Backup</h3>
+                <p class="settings-stat-number">{{ backup_date }}</p>
+            </div>
+            <div class="settings-stat-card">
+                <h3>Active Sessions</h3>
+                <p class="settings-stat-number">{{ active_sessions }}</p>
+            </div>
+            <div class="settings-stat-card">
+                <h3>Storage Used</h3>
+                <p class="settings-stat-number">{{ storage_used }}%</p>
+            </div>
+        </div> -->
+
+        <div class="settings_content">
+            <h2>Platform Settings</h2>
+            <p>Configure and manage platform settings and preferences.</p>
+            
+            <div class="settings-group">
+                <h3>General Settings</h3>
+                <div class="settings-card">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Platform Name</h4>
+                            <p>The name displayed across the platform</p>
+                        </div>
+                        <div class="setting-control">
+                            <input type="text" id="platformName" value="{{ settings.get('platform_name', 'ReliePH') }}" class="setting-input">
+                            <button class="save-btn" data-key="platform_name" data-type="string">Save</button>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Platform Description</h4>
+                            <p>Brief description of the platform's purpose</p>
+                        </div>
+                        <div class="setting-control">
+                            <textarea id="platformDesc" class="setting-textarea" rows="3">{{ settings.get('platform_description', 'A disaster relief fundraising platform connecting donors with those in need during emergencies.') }}</textarea>
+                            <button class="save-btn" data-key="platform_description" data-type="text">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Contact Email</h4>
+                            <p>Primary contact email for platform inquiries</p>
+                        </div>
+                        <div class="setting-control">
+                            <input type="email" id="contactEmail" value="{{ settings.get('contact_email', 'admin@relieph.com') }}" class="setting-input">
+                            <button class="save-btn" data-key="contact_email" data-type="string">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Fundraising Settings</h3>
+                <div class="settings-card">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Minimum Goal Amount</h4>
+                            <p>Minimum amount required for fundraiser goals</p>
+                        </div>
+                        <div class="setting-control">
+                            <span class="currency">₱</span>
+                            <input type="number" id="minGoal" value="{{ settings.get('min_goal_amount', 1000) }}" class="setting-input" min="0">
+                            <button class="save-btn" data-key="min_goal_amount" data-type="number">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Maximum Goal Amount</h4>
+                            <p>Maximum amount allowed for fundraiser goals</p>
+                        </div>
+                        <div class="setting-control">
+                            <span class="currency">₱</span>
+                            <input type="number" id="maxGoal" value="{{ settings.get('max_goal_amount', 10000000) }}" class="setting-input" min="0">
+                            <button class="save-btn" data-key="max_goal_amount" data-type="number">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Auto-Approval</h4>
+                            <p>Automatically approve fundraisers that meet criteria</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoApproval" {% if settings.get('auto_approval', False) %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Fundraiser Duration</h4>
+                            <p>Default duration for fundraising campaigns (days)</p>
+                        </div>
+                        <div class="setting-control">
+                            <input type="number" id="duration" value="{{ settings.get('fundraiser_duration', 90) }}" class="setting-input" min="1" max="365">
+                            <span class="unit">days</span>
+                            <button class="save-btn" data-key="fundraiser_duration" data-type="number">Save</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Minimum Donation</h4>
+                            <p>Minimum amount for individual donations</p>
+                        </div>
+                        <div class="setting-control">
+                            <span class="currency">₱</span>
+                            <input type="number" id="minDonation" value="{{ settings.get('min_donation', 50) }}" class="setting-input" min="1">
+                            <button class="save-btn" data-key="min_donation" data-type="number">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="settings-group">
+                <h3>System Maintenance</h3>
+                <div class="settings-card">
+                    <div class="setting-item">
+                        <div class="setting-info">
+                            <h4>Database Backup</h4>
+                            <p>Create a backup of the database</p>
+                        </div>
+                        <div class="setting-control">
+                            <button class="action-btn backup-btn">Create Backup</button>
+                        </div>
+                    </div>
+
+                    <div class="setting-item danger">
+                        <div class="setting-info">
+                            <h4>Maintenance Mode</h4>
+                            <p>Enable maintenance mode to perform updates</p>
+                        </div>
+                        <div class="setting-control">
+                            <label class="toggle-switch danger">
+                                <input type="checkbox" id="maintenanceMode" {% if settings.get('maintenance_mode', False) %}checked{% endif %}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>Account Management</h3>
+                <div class="settings-card">
+                    <div class="setting-item danger">
+                        <div class="setting-info">
+                            <h4>Sign Out</h4>
+                            <p>Sign out of your admin account</p>
+                        </div>
+                        <div class="setting-control">
+                            <button class="action-btn signout-btn danger">Sign Out</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.querySelector('.signout-btn')?.addEventListener('click', (event) => {
+            const confirmation = confirm('Are you sure you want to sign out?');
+            if (confirmation) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        });
+
+        document.querySelectorAll('.save-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const settingItem = this.closest('.setting-item');
+                const input = settingItem.querySelector('input, textarea, select');
+                const settingName = settingItem.querySelector('h4').textContent;
+                const settingKey = this.dataset.key;
+                const settingType = this.dataset.type;
+                
+                let value;
+                if (input.type === 'checkbox') {
+                    value = input.checked;
+                } else if (input.type === 'number') {
+                    value = parseFloat(input.value);
+                } else {
+                    value = input.value;
+                }
+                
+                this.textContent = 'Saving...';
+                this.disabled = true;
+                
+                try {
+                    const response = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            key: settingKey,
+                            value: value,
+                            type: settingType
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.textContent = 'Saved!';
+                        setTimeout(() => {
+                            this.textContent = 'Save';
+                            this.disabled = false;
+                        }, 1000);
+                    } else {
+                        this.textContent = 'Error';
+                        alert('Error saving setting: ' + data.error);
+                        setTimeout(() => {
+                            this.textContent = 'Save';
+                            this.disabled = false;
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('Error saving setting:', error);
+                    this.textContent = 'Error';
+                    alert('Error saving setting. Please try again.');
+                    setTimeout(() => {
+                        this.textContent = 'Save';
+                        this.disabled = false;
+                    }, 2000);
+                }
+            });
+        });
+
+        document.querySelector('.backup-btn')?.addEventListener('click', function() {
+            if (confirm('Create a database backup? This may take a few minutes.')) {
+                this.textContent = 'Creating Backup...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    alert('Database backup created successfully!');
+                    this.textContent = 'Create Backup';
+                    this.disabled = false;
+                }, 2000);
+            }
+        });
+
+        document.querySelector('.clear-btn')?.addEventListener('click', function() {
+            if (confirm('Clear system cache? This will temporarily slow down the system.')) {
+                this.textContent = 'Clearing...';
+                this.disabled = true;
+                
+                setTimeout(() => {
+                    alert('Cache cleared successfully!');
+                    this.textContent = 'Clear Cache';
+                    this.disabled = false;
+                }, 1000);
+            }
+        });
+
+        document.querySelectorAll('.toggle-switch input').forEach(toggle => {
+            toggle.addEventListener('change', async function() {
+                const settingItem = this.closest('.setting-item');
+                const settingName = settingItem.querySelector('h4').textContent;
+                
+                let settingKey;
+                if (settingName === 'Auto-Approval') {
+                    settingKey = 'auto_approval';
+                } else if (settingName === 'Maintenance Mode') {
+                    settingKey = 'maintenance_mode';
+                } else {
+                    return;
+                }
+                
+                if (settingName === 'Maintenance Mode') {
+                    const action = this.checked ? 'enable' : 'disable';
+                    const confirmation = confirm(`Are you sure you want to ${action} maintenance mode? This will ${action === 'enable' ? 'take the site offline for users' : 'bring the site back online'}.`);
+                    
+                    if (!confirmation) {
+                        this.checked = !this.checked;
+                        return;
+                    }
+                }
+                
+                try {
+                    const response = await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            key: settingKey,
+                            value: this.checked,
+                            type: 'boolean'
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        console.log(`${settingName}: ${this.checked ? 'Enabled' : 'Disabled'}`);
+                        
+                        if (settingName === 'Maintenance Mode') {
+                            if (this.checked) {
+                                alert('Maintenance mode enabled. The site is now offline for users.');
+                            } else {
+                                alert('Maintenance mode disabled. The site is now online.');
+                            }
+                        }
+                    } else {
+                        this.checked = !this.checked;
+                        alert('Error saving setting: ' + data.error);
+                    }
+                } catch (error) {
+                    this.checked = !this.checked;
+                    console.error('Error saving setting:', error);
+                    alert('Error saving setting. Please try again.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

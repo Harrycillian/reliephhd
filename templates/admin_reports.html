@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Reports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab active">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="reports-section">
+        <!-- visible when printing -->
+        <div class="print-header" style="display: none;">
+            <div class="print-header-content">
+                <div class="print-header-left">
+                    <img src="{{ url_for('static', filename='images/muni_logo.png') }}" alt="Municipality Logo" class="print-muni-logo">
+                </div>
+                <div class="print-header-center" style="text-align: center;">
+                    <h1 style="font-size: 14px;">ReliePH Platform</h1>
+                    <p style="font-size: 12px;">Administrative Report</p>
+                </div>
+                <div class="print-header-right">
+                    <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="ReliePH Logo" class="print-relieph-logo">
+                </div>
+            </div>
+            <div class="report-info" style="margin-top: 1.5rem; font-size: 12px; display: flex; flex-direction: row; justify-content: space-between;">
+                <p>
+                    <strong>Fundraisers: </strong> {{ report_stats.total_fundraisers }} |
+                    <strong>Users: </strong> {{ report_stats.total_users }} |
+                    <strong>Donations: </strong> {{ report_stats.total_donations }} |
+                    <strong>Incidents: </strong> {{ report_stats.total_incidents }}
+                </p>
+                <p><strong>Date Range:</strong> {{ report_stats.date_range }}</p>
+            </div>
+        </div>
+
+        <!-- <div class="reports-stats">
+            <div class="reports-stat-card">
+                <h3>Total Reports</h3>
+                <p class="reports-stat-number">{{ report_stats.total_fundraisers + report_stats.total_users + report_stats.total_donations }}</p>
+            </div>
+            <div class="reports-stat-card">
+                <h3>Date Range</h3>
+                <p class="reports-stat-number">{{ report_stats.date_range }}</p>
+            </div>
+            <div class="reports-stat-card">
+                <h3>Total Revenue</h3>
+                <p class="reports-stat-number">₱{{ "{:,.0f}".format(report_stats.total_revenue) }}</p>
+            </div>
+            <div class="reports-stat-card">
+                <h3>Report Generated</h3>
+                <p class="reports-stat-number">{{ report_stats.generated_date }}</p>
+            </div>
+        </div> -->
+
+        <div class="reports_table">
+            <div class="reports-filters">
+                <div class="filter-group">
+                    <label>Filter by Report Type:</label>
+                    <div class="custom-dropdown">
+                        <div class="dropdown-trigger" id="reportTypeDropdown">
+                            <span class="dropdown-text">Select Report Types</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content" id="reportTypeContent">
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="fundraisers-check" data-type="fundraisers" 
+                                    {% if 'fundraisers' in selected_types %}checked{% endif %}>
+                                <label for="fundraisers-check">Fundraisers</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="users-check" data-type="users" 
+                                    {% if 'users' in selected_types %}checked{% endif %}>
+                                <label for="users-check">Users</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="donations-check" data-type="donations" 
+                                    {% if 'donations' in selected_types %}checked{% endif %}>
+                                <label for="donations-check">Donations</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="incidents-check" data-type="incidents" 
+                                    {% if 'incidents' in selected_types %}checked{% endif %}>
+                                <label for="incidents-check">Incidents</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Category:</label>
+                    <div class="custom-dropdown">
+                        <div class="dropdown-trigger" id="incidentTypeDropdown">
+                            <span class="dropdown-text">All Types</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content" id="incidentTypeContent">
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="disaster-relief" data-type="Disaster Relief" 
+                                    {% if 'Disaster Relief' in selected_incident_types %}checked{% endif %}>
+                                <label for="disaster-relief">Disaster Relief</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="animal-rescue-welfare" data-type="Animal Rescue & Welfare" 
+                                    {% if 'Animal Rescue & Welfare' in selected_incident_types %}checked{% endif %}>
+                                <label for="animal-rescue-welfare">Animal Rescue &amp; Welfare</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="community" data-type="Community" 
+                                    {% if 'Community' in selected_incident_types %}checked{% endif %}>
+                                <label for="community">Community</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="family" data-type="Family" 
+                                    {% if 'Family' in selected_incident_types %}checked{% endif %}>
+                                <label for="family">Family</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="education" data-type="Education" 
+                                    {% if 'Education' in selected_incident_types %}checked{% endif %}>
+                                <label for="education">Education</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="livelihood-support" data-type="Livelihood Support" 
+                                    {% if 'Livelihood Support' in selected_incident_types %}checked{% endif %}>
+                                <label for="livelihood-support">Livelihood Support</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="medical" data-type="Medical" 
+                                    {% if 'Medical' in selected_incident_types %}checked{% endif %}>
+                                <label for="medical">Medical</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="volunteer" data-type="Volunteer" 
+                                    {% if 'Volunteer' in selected_incident_types %}checked{% endif %}>
+                                <label for="volunteer">Volunteer</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="other" data-type="Other" 
+                                    {% if 'Other' in selected_incident_types %}checked{% endif %}>
+                                <label for="other">Other</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label>Filter by Fundraiser Status:</label>
+                    <div class="custom-dropdown">
+                        <div class="dropdown-trigger" id="fundraiserStatusDropdown">
+                            <span class="dropdown-text">All Statuses</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content" id="fundraiserStatusContent">
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="pending-fundraiser-status" data-status="Pending"
+                                    {% if 'Pending' in selected_fundraiser_statuses %}checked{% endif %}>
+                                <label for="pending-fundraiser-status">Pending</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="active-fundraiser-status" data-status="Active"
+                                    {% if 'Active' in selected_fundraiser_statuses %}checked{% endif %}>
+                                <label for="active-fundraiser-status">Active</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="paused-fundraiser-status" data-status="Paused"
+                                    {% if 'Paused' in selected_fundraiser_statuses %}checked{% endif %}>
+                                <label for="paused-fundraiser-status">Paused</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="disapproved-fundraiser-status" data-status="Disapproved"
+                                    {% if 'Disapproved' in selected_fundraiser_statuses %}checked{% endif %}>
+                                <label for="disapproved-fundraiser-status">Disapproved</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="completed-fundraiser-status" data-status="Completed"
+                                    {% if 'Completed' in selected_fundraiser_statuses %}checked{% endif %}>
+                                <label for="completed-fundraiser-status">Completed</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="startDate">Start Date:</label>
+                    <input type="date" id="startDate" class="filter-input date-input" value="{{ start_date }}">
+                </div>
+                <div class="filter-group">
+                    <label for="endDate">End Date:</label>
+                    <input type="date" id="endDate" class="filter-input date-input" value="{{ end_date }}">
+                </div>
+                <div class="filter-group">
+                    <div class="filter-group-buttons">
+                        <button id="clearReportFilters" class="clear-btn">Clear</button>
+                        <button id="generateReport" class="generate-btn">Generate</button>
+                        <button id="printReport" class="print-btn">Print</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="report-sections">
+                <div class="report-section" id="fundraisersReport">
+                    <div class="report-section-header">
+                        <h3>Fundraisers Report</h3>
+                        <div class="report-search">
+                            <input type="text" id="searchFundraisers" class="report-search-input" placeholder="Search fundraisers...">
+                        </div>
+                    </div>
+                    <div class="tablez">
+                        <table class="report-table">
+                            <thead>
+                                <tr class="report_header">
+                                    <th>ID</th>
+                                    <th>Title</th>
+                                    <th>Goal Amount</th>
+                                    <th>Raised</th>
+                                    <th>Progress</th>
+                                    <th>Status</th>
+                                    <th>Date Created</th>
+                                </tr>
+                            </thead>
+                            <tbody class="report_body">
+                                {% for fund in fundraisers %}
+                                <tr class="report_row fundraiser-row" data-status="{{ fund.fund_status }}">
+                                    <td>{{ fund.fund_id }}</td>
+                                    <td class="report-title-cell" title="{{ fund.fund_title }}">{{ fund.fund_title }}</td>
+                                    <td>₱{{ "{:,}".format(fund.fund_goalamount|int) }}</td>
+                                    <td>₱{{ "{:,}".format(fund.total_raised|int) }}</td>
+                                    <td>
+                                        {% set progress = ((fund.total_raised / fund.fund_goalamount) * 100) if fund.fund_goalamount > 0 else 0 %}
+                                        {% if progress > 100 %}{% set progress = 100 %}{% endif %}
+                                        {{ '%.0f' % progress }}%
+                                    </td>
+                                    <td>
+                                        <span class="status-badge status-{{ fund.fund_status.lower() }}">{{ fund.fund_status }}</span>
+                                    </td>
+                                    <td>{{ fund.fund_startdate.strftime('%b %d, %Y') if fund.fund_startdate else 'N/A' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr class="empty-state-row">
+                                    <td colspan="7">No fundraisers found in this generated report.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="report-section" id="usersReport">
+                    <div class="report-section-header">
+                        <h3>Users Report</h3>
+                        <div class="report-search">
+                            <input type="text" id="searchUsers" class="report-search-input" placeholder="Search users...">
+                        </div>
+                    </div>
+                    <div class="tablez">
+                        <table class="report-table">
+                            <thead>
+                                <tr class="report_header">
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Role</th>
+                                    <th>Join Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="report_body">
+                                {% for user in users %}
+                                <tr class="report_row user-row">
+                                    <td>{{ user.id }}</td>
+                                    <td class="report-name-cell" title="{{ user.name }}">{{ user.name }}</td>
+                                    <td class="report-email-cell" title="{{ user.email }}">{{ user.email }}</td>
+                                    <td>
+                                        <span class="role-badge role-{{ user.role.lower() }}">
+                                            {% if user.role == 'Organization' %}ORG{% else %}{{ user.role }}{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ user.date_created.strftime('%b %d, %Y') if user.date_created else 'N/A' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr class="empty-state-row">
+                                    <td colspan="5">No users found in this generated report.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="report-section" id="donationsReport">
+                    <div class="report-section-header">
+                        <h3>Donations Report</h3>
+                        <div class="report-search">
+                            <input type="text" id="searchDonations" class="report-search-input" placeholder="Search donations...">
+                        </div>
+                    </div>
+                    <div class="tablez">
+                        <table class="report-table">
+                            <thead>
+                                <tr class="report_header">
+                                    <th>ID</th>
+                                    <th>Donor Name</th>
+                                    <th>Amount</th>
+                                    <th>Fundraiser</th>
+                                    <th>Payment Method</th>
+                                    <th>Status</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="report_body">
+                                {% for donation in donations %}
+                                <tr class="report_row donation-row">
+                                    <td>{{ donation.don_id }}</td>
+                                    <td>{{ donation.don_donorname }}</td>
+                                    <td>₱{{ "{:,}".format(donation.don_amount|int) }}</td>
+                                    <td class="report-fund-cell" title="{{ donation.fund_title }}">{{ donation.fund_title }}</td>
+                                    <td>{{ donation.don_paymethod }}</td>
+                                    <td>
+                                        <div class="{% if donation.don_status == 'Pending' %}status-pending{% elif donation.don_status == 'Paid' %}status-paid{% elif donation.don_status == 'Failed' %}status-failed{% endif %}">
+                                            <p class="statuz">{{ donation.don_status }}</p>
+                                        </div>
+                                    </td>
+                                    <td>{{ donation.don_date.strftime('%b %d, %Y') if donation.don_date else 'N/A' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr class="empty-state-row">
+                                    <td colspan="7">No donations found in this generated report.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Incidents Report Section -->
+                <div class="report-section" id="incidentsReport">
+                    <div class="report-section-header">
+                        <h3>Incidents Report</h3>
+                        <div class="report-search">
+                            <input type="text" id="searchIncidents" class="report-search-input" placeholder="Search incidents...">
+                        </div>
+                    </div>
+                    <div class="tablez">
+                        <table class="report-table">
+                            <thead>
+                                <tr class="report_header">
+                                    <th>ID</th>
+                                    <th>Incident Type</th>
+                                    <th>Title</th>
+                                    <th>Location</th>
+                                    <th>Goal Amount</th>
+                                    <th>Raised</th>
+                                    <th>Status</th>
+                                    <th>Date Created</th>
+                                </tr>
+                            </thead>
+                            <tbody class="report_body">
+                                {% for incident in incidents %}
+                                <tr class="report_row incident-row">
+                                    <td>{{ incident.fund_id }}</td>
+                                    <td>
+                                        <span class="incident-type-badge incident-{{ incident.fund_category.lower().replace(' ', '-') }}">
+                                            {{ incident.fund_category }}
+                                        </span>
+                                    </td>
+                                    <td class="report-title-cell" title="{{ incident.fund_title }}">{{ incident.fund_title }}</td>
+                                    <td>{{ incident.fund_beneficiary or 'N/A' }}</td>
+                                    <td>₱{{ "{:,}".format(incident.fund_goalamount|int) }}</td>
+                                    <td>₱{{ "{:,}".format(incident.total_raised|int) }}</td>
+                                    <td>
+                                        <span class="status-badge status-{{ incident.fund_status.lower() }}">{{ incident.fund_status }}</span>
+                                    </td>
+                                    <td>{{ incident.fund_startdate.strftime('%b %d, %Y') if incident.fund_startdate else 'N/A' }}</td>
+                                </tr>
+                                {% else %}
+                                <tr class="empty-state-row">
+                                    <td colspan="8">No incidents found in this generated report.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Summary Section -->
+                <div class="report-section" id="summaryReport">
+                    <div class="report-section-header">
+                        <h3>Summary by Incident/Event</h3>
+                    </div>
+                    <div class="summary-cards">
+                        {% if incident_summary %}
+                        {% for category, stats in incident_summary.items() %}
+                        <div class="summary-card">
+                            <h4>{{ category }}</h4>
+                            <div class="summary-stats">
+                                <div class="summary-stat">
+                                    <span class="summary-label">Total Fundraisers:</span>
+                                    <span class="summary-value">{{ stats.count }}</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="summary-label">Total Goal:</span>
+                                    <span class="summary-value">₱{{ "{:,}".format(stats.total_goal|int) }}</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="summary-label">Total Raised:</span>
+                                    <span class="summary-value">₱{{ "{:,}".format(stats.total_raised|int) }}</span>
+                                </div>
+                                <div class="summary-stat">
+                                    <span class="summary-label">Completion Rate:</span>
+                                    <span class="summary-value">{{ "%.1f"|format(stats.completion_rate) }}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% else %}
+                        <div class="summary-card empty-summary-card">
+                            <h4>No Summary Data</h4>
+                            <div class="summary-stats">
+                                <div class="summary-stat">
+                                    <span class="summary-label">Status:</span>
+                                    <span class="summary-value">No incident summary available for this generated report.</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- visible when printing -->
+        <div class="print-footer" style="display: none;">
+            <div class="signature-section">
+                <div class="signature-column">
+                    <div class="signature-field">
+                        <p class="signature-label">Prepared by:</p>
+                        <div class="signature-line left"></div>
+                        <!-- <p class="signature-name">{{ session.get('username', 'Admin User') }}</p> -->
+                        <p class="signature-title">Platform Administrator</p>
+                        <p class="signature-date">Date: {{ report_stats.generated_date }}</p>
+                    </div>
+                    <!-- <div class="signature-field"></div> -->
+                    <div class="signature-field">
+                        <p class="signature-label" style="margin-left: 7.4rem;">Certified by:</p>
+                        <div class="signature-line right"></div>
+                        <!-- <p class="signature-name">_________________</p> -->
+                        <p class="signature-title">Authorized Signatory</p>
+                        <p class="signature-date">Date: _______________</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="invi" style="display: none;">
+            <div class="flexz" style="display: flex; flex-direction: row; justify-content: space-between;">
+                <div class="etg"></div>
+                <p>Generated on {{ report_stats.generated_date }}</p>
+            </div>
+            </div><div class="report-footer-info">
+                <!-- <p>This report was generated by ReliePH Platform on {{ report_stats.generated_date }}</p> -->
+                <p style="text-align: center;">&copy; 2026 ReliePH. All rights reserved.</p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+
+        const reportTypeDropdown = document.getElementById('reportTypeDropdown');
+        const reportTypeContent = document.getElementById('reportTypeContent');
+        const reportTypeCheckboxes = document.querySelectorAll('#reportTypeContent input[type="checkbox"]');
+        const incidentTypeDropdown = document.getElementById('incidentTypeDropdown');
+        const incidentTypeContent = document.getElementById('incidentTypeContent');
+        const incidentTypeCheckboxes = document.querySelectorAll('#incidentTypeContent input[type="checkbox"]');
+        const fundraiserStatusDropdown = document.getElementById('fundraiserStatusDropdown');
+        const fundraiserStatusContent = document.getElementById('fundraiserStatusContent');
+        const fundraiserStatusCheckboxes = document.querySelectorAll('#fundraiserStatusContent input[type="checkbox"]');
+        const startDate = document.getElementById('startDate');
+        const endDate = document.getElementById('endDate');
+        const generateReportBtn = document.getElementById('generateReport');
+        const clearReportFiltersBtn = document.getElementById('clearReportFilters');
+        const printReportBtn = document.getElementById('printReport');
+        
+        const searchFundraisers = document.getElementById('searchFundraisers');
+        const searchUsers = document.getElementById('searchUsers');
+        const searchDonations = document.getElementById('searchDonations');
+        const searchIncidents = document.getElementById('searchIncidents');
+
+        function updateDropdownText() {
+            const checkedBoxes = document.querySelectorAll('#reportTypeContent input[type="checkbox"]:checked');
+            const dropdownText = document.querySelector('#reportTypeDropdown .dropdown-text');
+            
+            if (checkedBoxes.length === 0) {
+                dropdownText.textContent = 'Select Report Types';
+            } else if (checkedBoxes.length === reportTypeCheckboxes.length) {
+                dropdownText.textContent = 'All Report Types';
+            } else {
+                dropdownText.textContent = `${checkedBoxes.length} selected`;
+            }
+        }
+
+        function updateIncidentTypeText() {
+            const checkedBoxes = document.querySelectorAll('#incidentTypeContent input[type="checkbox"]:checked');
+            const dropdownText = document.querySelector('#incidentTypeDropdown .dropdown-text');
+            
+            if (checkedBoxes.length === 0) {
+                dropdownText.textContent = 'All Types';
+            } else if (checkedBoxes.length === incidentTypeCheckboxes.length) {
+                dropdownText.textContent = 'All Types';
+            } else {
+                dropdownText.textContent = `${checkedBoxes.length} selected`;
+            }
+        }
+
+        function updateFundraiserStatusText() {
+            const checkedBoxes = document.querySelectorAll('#fundraiserStatusContent input[type="checkbox"]:checked');
+            const dropdownText = document.querySelector('#fundraiserStatusDropdown .dropdown-text');
+
+            if (checkedBoxes.length === 0) {
+                dropdownText.textContent = 'All Statuses';
+            } else if (checkedBoxes.length === fundraiserStatusCheckboxes.length) {
+                dropdownText.textContent = 'All Statuses';
+            } else {
+                dropdownText.textContent = `${checkedBoxes.length} selected`;
+            }
+        }
+
+        function filterReportSections() {
+            const fundraisersSection = document.getElementById('fundraisersReport');
+            const usersSection = document.getElementById('usersReport');
+            const donationsSection = document.getElementById('donationsReport');
+            const incidentsSection = document.getElementById('incidentsReport');
+            const summarySection = document.getElementById('summaryReport');
+
+            const fundraisersChecked = document.getElementById('fundraisers-check').checked;
+            const usersChecked = document.getElementById('users-check').checked;
+            const donationsChecked = document.getElementById('donations-check').checked;
+            const incidentsChecked = document.getElementById('incidents-check').checked;
+
+            fundraisersSection.style.display = fundraisersChecked ? 'block' : 'none';
+            usersSection.style.display = usersChecked ? 'block' : 'none';
+            donationsSection.style.display = donationsChecked ? 'block' : 'none';
+            incidentsSection.style.display = incidentsChecked ? 'block' : 'none';
+            summarySection.style.display = 'block';
+        }
+
+        function filterByDateRange() {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            
+            if (!startDate.value || !endDate.value) return;
+
+            document.querySelectorAll('.report_row').forEach(row => {
+                const dateCell = row.cells[row.cells.length - 1];
+                const dateText = dateCell.textContent.trim();
+                
+                if (dateText === 'N/A') {
+                    row.style.display = 'none';
+                    return;
+                }
+
+                const rowDate = new Date(dateText);
+                row.style.display = (rowDate >= start && rowDate <= end) ? '' : 'none';
+            });
+        }
+
+        function searchFundraisersTable() {
+            const searchValue = searchFundraisers.value.toLowerCase();
+            const rows = document.querySelectorAll('.fundraiser-row');
+            
+            rows.forEach(row => {
+                const title = row.querySelector('.report-title-cell').textContent.toLowerCase();
+                const id = row.cells[0].textContent.toLowerCase();
+                const goal = row.cells[2].textContent.toLowerCase();
+                const raised = row.cells[3].textContent.toLowerCase();
+                const status = row.cells[6].textContent.toLowerCase();
+                
+                const matches = title.includes(searchValue) || 
+                            id.includes(searchValue) || 
+                            goal.includes(searchValue) || 
+                            raised.includes(searchValue) || 
+                            status.includes(searchValue);
+                
+                row.style.display = matches ? '' : 'none';
+            });
+        }
+
+        function searchUsersTable() {
+            const searchValue = searchUsers.value.toLowerCase();
+            const rows = document.querySelectorAll('.user-row');
+            
+            rows.forEach(row => {
+                const name = row.querySelector('.report-name-cell').textContent.toLowerCase();
+                const email = row.querySelector('.report-email-cell').textContent.toLowerCase();
+                const id = row.cells[0].textContent.toLowerCase();
+                const role = row.cells[4].textContent.toLowerCase();
+                
+                const matches = name.includes(searchValue) || 
+                            email.includes(searchValue) || 
+                            id.includes(searchValue) || 
+                            role.includes(searchValue);
+                
+                row.style.display = matches ? '' : 'none';
+            });
+        }
+
+        function searchDonationsTable() {
+            const searchValue = searchDonations.value.toLowerCase();
+            const rows = document.querySelectorAll('.donation-row');
+            
+            rows.forEach(row => {
+                const donorName = row.cells[1].textContent.toLowerCase();
+                const amount = row.cells[2].textContent.toLowerCase();
+                const fundraiser = row.querySelector('.report-fund-cell').textContent.toLowerCase();
+                const method = row.cells[4].textContent.toLowerCase();
+                const status = row.cells[5].textContent.toLowerCase();
+                const id = row.cells[0].textContent.toLowerCase();
+                
+                const matches = donorName.includes(searchValue) || 
+                            amount.includes(searchValue) || 
+                            fundraiser.includes(searchValue) || 
+                            method.includes(searchValue) || 
+                            status.includes(searchValue) || 
+                            id.includes(searchValue);
+                
+                row.style.display = matches ? '' : 'none';
+            });
+        }
+
+        function searchIncidentsTable() {
+            const searchValue = searchIncidents.value.toLowerCase();
+            const rows = document.querySelectorAll('.incident-row');
+            
+            rows.forEach(row => {
+                const incidentType = row.cells[1].textContent.toLowerCase();
+                const title = row.querySelector('.report-title-cell').textContent.toLowerCase();
+                const location = row.cells[3].textContent.toLowerCase();
+                const goal = row.cells[4].textContent.toLowerCase();
+                const raised = row.cells[5].textContent.toLowerCase();
+                const status = row.cells[6].textContent.toLowerCase();
+                const id = row.cells[0].textContent.toLowerCase();
+                
+                const matches = incidentType.includes(searchValue) || 
+                            title.includes(searchValue) || 
+                            location.includes(searchValue) || 
+                            goal.includes(searchValue) || 
+                            raised.includes(searchValue) || 
+                            status.includes(searchValue) || 
+                            id.includes(searchValue);
+                
+                row.style.display = matches ? '' : 'none';
+            });
+        }
+
+        function filterByIncidentType() {
+            const checkedBoxes = document.querySelectorAll('#incidentTypeContent input[type="checkbox"]:checked');
+            const selectedTypes = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-type'));
+            
+            if (selectedTypes.length === 0) {
+                // Show all rows when no types are selected
+                document.querySelectorAll('.incident-row').forEach(row => {
+                    row.style.display = '';
+                });
+                return;
+            }
+
+            document.querySelectorAll('.incident-row').forEach(row => {
+                const typeCell = row.cells[1].textContent.trim();
+                row.style.display = selectedTypes.includes(typeCell) ? '' : 'none';
+            });
+        }
+
+        function filterByFundraiserStatus() {
+            const checkedBoxes = document.querySelectorAll('#fundraiserStatusContent input[type="checkbox"]:checked');
+            const selectedStatuses = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-status'));
+
+            document.querySelectorAll('.fundraiser-row').forEach(row => {
+                const rowStatus = row.dataset.status || '';
+                row.style.display = selectedStatuses.length === 0 || selectedStatuses.includes(rowStatus) ? '' : 'none';
+            });
+        }
+
+        // Report Type Dropdown toggle functionality
+        reportTypeDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = reportTypeContent.classList.toggle('show');
+            reportTypeDropdown.parentElement.classList.toggle('open', isOpen);
+        });
+
+        // Incident Type Dropdown toggle functionality
+        incidentTypeDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = incidentTypeContent.classList.toggle('show');
+            incidentTypeDropdown.parentElement.classList.toggle('open', isOpen);
+        });
+
+        fundraiserStatusDropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const isOpen = fundraiserStatusContent.classList.toggle('show');
+            fundraiserStatusDropdown.parentElement.classList.toggle('open', isOpen);
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!reportTypeDropdown.contains(e.target)) {
+                reportTypeContent.classList.remove('show');
+                reportTypeDropdown.parentElement.classList.remove('open');
+            }
+            if (!incidentTypeDropdown.contains(e.target)) {
+                incidentTypeContent.classList.remove('show');
+                incidentTypeDropdown.parentElement.classList.remove('open');
+            }
+            if (!fundraiserStatusDropdown.contains(e.target)) {
+                fundraiserStatusContent.classList.remove('show');
+                fundraiserStatusDropdown.parentElement.classList.remove('open');
+            }
+        });
+
+        // Handle checkbox changes for report types
+        reportTypeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation(); // Prevent dropdown from closing
+                updateDropdownText();
+                filterReportSections();
+            });
+        });
+
+        // Handle checkbox changes for incident types
+        incidentTypeCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation(); // Prevent dropdown from closing
+                updateIncidentTypeText();
+                filterByIncidentType();
+            });
+        });
+
+        fundraiserStatusCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation();
+                updateFundraiserStatusText();
+                filterByFundraiserStatus();
+            });
+        });
+        
+        if (searchFundraisers) {
+            searchFundraisers.addEventListener('input', searchFundraisersTable);
+        }
+        if (searchUsers) {
+            searchUsers.addEventListener('input', searchUsersTable);
+        }
+        if (searchDonations) {
+            searchDonations.addEventListener('input', searchDonationsTable);
+        }
+        if (searchIncidents) {
+            searchIncidents.addEventListener('input', searchIncidentsTable);
+        }
+        
+        generateReportBtn.addEventListener('click', function() {
+            const startDateValue = startDate.value;
+            const endDateValue = endDate.value;
+            const checkedIncidentBoxes = document.querySelectorAll('#incidentTypeContent input[type="checkbox"]:checked');
+            const incidentTypes = Array.from(checkedIncidentBoxes).map(cb => cb.getAttribute('data-type'));
+            const checkedFundraiserStatusBoxes = document.querySelectorAll('#fundraiserStatusContent input[type="checkbox"]:checked');
+            const fundraiserStatuses = Array.from(checkedFundraiserStatusBoxes).map(cb => cb.getAttribute('data-status'));
+            
+            const selectedTypes = Array.from(reportTypeCheckboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.getAttribute('data-type'));
+            
+            if (selectedTypes.length === 0) {
+                alert('Please select at least one report type.');
+                return;
+            }
+            
+            const params = new URLSearchParams({
+                start_date: startDateValue,
+                end_date: endDateValue,
+                report_types: selectedTypes.join(',')
+            });
+            
+            // Add incident types if any are selected
+            if (incidentTypes.length > 0) {
+                params.append('incident_types', incidentTypes.join(','));
+            }
+
+            if (fundraiserStatuses.length > 0) {
+                params.append('fundraiser_statuses', fundraiserStatuses.join(','));
+            }
+            
+            window.location.href = `{{ url_for('admin_reports') }}?${params.toString()}`;
+        });
+
+        clearReportFiltersBtn.addEventListener('click', function() {
+            // Reset report type checkboxes
+            reportTypeCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateDropdownText();
+            
+            // Reset incident type checkboxes (uncheck all to show all types)
+            incidentTypeCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateIncidentTypeText();
+
+            fundraiserStatusCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateFundraiserStatusText();
+            
+            // Reset date inputs
+            startDate.value = '';
+            endDate.value = '';
+            
+            // Reset search inputs
+            if (searchFundraisers) searchFundraisers.value = '';
+            if (searchUsers) searchUsers.value = '';
+            if (searchDonations) searchDonations.value = '';
+            if (searchIncidents) searchIncidents.value = '';
+            
+            // Reset filters and show all rows
+            filterReportSections();
+            filterByIncidentType();
+            filterByFundraiserStatus();
+            document.querySelectorAll('.report_row').forEach(row => row.style.display = '');
+        });
+
+        function getRowIdValue(row) {
+            const firstCell = row.cells && row.cells[0] ? row.cells[0].textContent.trim() : '';
+            const numeric = Number(firstCell.replace(/[^0-9.-]/g, ''));
+            if (!Number.isNaN(numeric) && firstCell !== '') {
+                return { isNumeric: true, value: numeric };
+            }
+            return { isNumeric: false, value: firstCell.toLowerCase() };
+        }
+
+        function sortRowsAscendingForPrint() {
+            document.querySelectorAll('.report-table .report_body').forEach(tbody => {
+                const rows = Array.from(tbody.querySelectorAll('tr.report_row'));
+                if (!rows.length) return;
+
+                rows.forEach((row, idx) => {
+                    if (row.dataset.printOriginalIndex === undefined) {
+                        row.dataset.printOriginalIndex = String(idx);
+                    }
+                });
+
+                rows.sort((a, b) => {
+                    const aVal = getRowIdValue(a);
+                    const bVal = getRowIdValue(b);
+
+                    if (aVal.isNumeric && bVal.isNumeric) {
+                        return aVal.value - bVal.value;
+                    }
+
+                    return String(aVal.value).localeCompare(String(bVal.value), undefined, {
+                        numeric: true,
+                        sensitivity: 'base'
+                    });
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+                const emptyRow = tbody.querySelector('tr.empty-state-row');
+                if (emptyRow) tbody.appendChild(emptyRow);
+            });
+        }
+
+        function restoreRowsAfterPrint() {
+            document.querySelectorAll('.report-table .report_body').forEach(tbody => {
+                const rows = Array.from(tbody.querySelectorAll('tr.report_row'));
+                if (!rows.length) return;
+
+                rows.sort((a, b) => {
+                    const aIdx = Number(a.dataset.printOriginalIndex ?? 0);
+                    const bIdx = Number(b.dataset.printOriginalIndex ?? 0);
+                    return aIdx - bIdx;
+                });
+
+                rows.forEach(row => tbody.appendChild(row));
+                const emptyRow = tbody.querySelector('tr.empty-state-row');
+                if (emptyRow) tbody.appendChild(emptyRow);
+            });
+        }
+
+        window.addEventListener('beforeprint', sortRowsAscendingForPrint);
+        window.addEventListener('afterprint', restoreRowsAfterPrint);
+        printReportBtn.addEventListener('click', () => window.print());
+
+        // Initialize dropdown text and filter sections
+        updateDropdownText();
+        updateIncidentTypeText();
+        updateFundraiserStatusText();
+        filterReportSections();
+        filterByIncidentType();
+        filterByFundraiserStatus();
+        if (startDate.value && endDate.value) {
+            filterByDateRange();
+        }
+    </script>
+
+    <style>
+        .report-section .tablez {
+            border: 1px solid #d9e0e8;
+            border-radius: 10px;
+            overflow: auto;
+            background: #ffffff;
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .report-table th {
+            background: #f5f7fa;
+            color: #2f3a48;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 10px 12px;
+            /* border-bottom: 1px solid #d9e0e8; */
+            text-align: left;
+        }
+
+        .report-table td {
+            color: #2f3a48;
+            font-size: 12px;
+            padding: 9px 12px;
+            border-bottom: 1px solid #ebeff4;
+            vertical-align: middle;
+        }
+
+        .report-table tbody tr:nth-child(even) {
+            background: #fafbfd;
+        }
+
+        .report-table tbody tr:hover {
+            background: #f3f6fb;
+        }
+
+        .report-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .empty-state-row td {
+            text-align: center;
+            color: #586575;
+            font-style: italic;
+            padding: 14px 12px;
+            background: #fafbfd;
+        }
+    </style>
+
+    <style>
+        @media print {
+            @page {
+                size: A4 portrait;
+                /* margin: auto; */
+            }
+
+            * {
+                font-family: Arial, sans-serif !important;
+                text-shadow: none !important;
+                box-shadow: none !important;
+            }
+
+            body {
+                color: #111 !important;
+                background: #fff !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .navbar, .secondary-nav, .footer, .reports-filters, .print-btn, .generate-btn, .clear-btn, .report-search {
+                display: none !important;
+            }
+
+            #summaryReport {
+                display: none !important;
+            }
+
+        .reports-section {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+            .reports_table {
+                margin-top: 0 !important;
+            }
+
+            .report-sections {
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                gap: 10px !important;
+            }
+
+            .report-section {
+                break-inside: auto;
+                page-break-inside: auto;
+                margin-bottom: 10px !important;
+                background: none !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+
+            .report-section-header {
+                margin-bottom: 5px !important;
+            }
+
+            .report-section h3 {
+                color: #000 !important;
+                font-size: 11px !important;
+                margin: 0 0 4px 0 !important;
+                /* border-bottom: 1px solid #111 !important; */
+                padding-bottom: 4px !important;
+            }
+
+            .tablez {
+                max-height: none !important;
+                overflow: visible !important;
+                border: none !important;
+                border-radius: 0 !important;
+            }
+
+            .report-table {
+                border-collapse: collapse !important;
+                width: 100% !important;
+                table-layout: auto !important;
+                border: 1px solid #111 !important;
+                margin-bottom: 8px !important;
+            }
+
+            .report-table thead {
+                display: table-header-group;
+            }
+
+            .report-table tr {
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+
+            .report-table th,
+            .report-table td {
+                border: 1px solid #111 !important;
+                font-size: 9px !important;
+                text-align: left !important;
+                padding: 4px 6px !important;
+                line-height: 1.25 !important;
+                color: #111 !important;
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+            }
+
+            .report-table th {
+                background: #f2f2f2 !important;
+                font-weight: 700 !important;
+            }
+
+            .empty-state-row td {
+                text-align: center !important;
+                font-style: italic !important;
+                color: #111 !important;
+                background: #fff !important;
+            }
+
+            .report_body td[class*="status-"],
+            .report_body td [class*="status-"],
+            .report_body td [class*="status-"] * {
+                background: transparent !important;
+                box-shadow: none !important;
+                color: inherit !important;
+                font: inherit !important;
+                font-weight: inherit !important;
+                line-height: inherit !important;
+                text-align: inherit !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                border: none !important;
+                justify-content: flex-start !important;
+            }
+
+            .status-badge {
+                background: transparent !important;
+                border: none !important;
+                border-radius: 0 !important;
+                color: inherit !important;
+                font: inherit !important;
+                font-weight: inherit !important;
+                padding: 0 !important;
+            }
+
+            .status-badge p {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: transparent !important;
+                border: none !important;
+                color: inherit !important;
+                font: inherit !important;
+                font-weight: inherit !important;
+            }
+
+            .role-badge, .incident-type-badge {
+                background: none !important;
+                color: #111 !important;
+                border: none !important;
+                padding: 0 !important;
+                font-size: 9px !important;
+                font-weight: 600 !important;
+                border-radius: 0 !important;
+            }
+
+            .role-badge p, .incident-type-badge p {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: none !important;
+                border: none !important;
+            }
+
+            .report_body .statuz,
+            .report_body .statuz * {
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                color: inherit !important;
+                font: inherit !important;
+                font-weight: inherit !important;
+                line-height: inherit !important;
+                text-align: left !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: inline !important;
+            }
+
+            .print-header {
+                display: block !important;
+                margin-bottom: 10px !important;
+                padding-bottom: 8px !important;
+                border-bottom: 1px solid #111 !important;
+            }
+
+            .print-header-content {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                gap: 25px !important;
+            }
+
+            .print-header-left {
+                flex: 0 0 auto;
+            }
+
+            .print-header-right {
+                flex: 0 1 auto !important;
+                text-align: center !important;
+            }
+
+            .print-muni-logo {
+                max-height: 48px !important;
+                max-width: 80px !important;
+                object-fit: contain !important;
+            }
+
+            .print-header h1 {
+                font-size: 15px !important;
+                font-weight: 700 !important;
+                color: #111 !important;
+                margin: 0 !important;
+            }
+
+            .print-header .print-date {
+                font-size: 9px !important;
+                color: #111 !important;
+                margin-top: 2px !important;
+            }
+
+            .invi {
+                display: block !important;
+                font-size: 12px !important;
+            }
+
+            .print-footer {
+                display: block !important;
+                text-align: left !important;
+                margin: 0 4rem !important;
+                margin-top: 8px !important;
+                /* border-top: 1px solid #111 !important; */
+                font-size: 8.5px !important;
+                color: #111 !important;
+            }
+
+            .signature-section {
+                display: block !important;
+            }
+
+            .signature-row {
+                display: flex !important;
+                justify-content: space-between !important;
+                align-items: flex-start !important;
+                gap: 16px !important;
+            }
+
+            .signature-field {
+                flex: 1 1 0 !important;
+            }
+
+            .signature-field:first-child {
+                text-align: left !important;
+            }
+
+            .signature-field:last-child {
+                text-align: right !important;
+            }
+
+            .signature-field:first-child .signature-line {
+                margin: 0 0 1rem 0 !important;
+            }
+
+            .signature-field:last-child .signature-line {
+                margin: 0 0 1rem auto !important;
+            }
+
+            .report-footer-info {
+                text-align: left !important;
+                margin-top: 0 !important;
+                padding-top: 0 !important;
+                border-top: none !important;
+            }
+
+            .report-footer-info p {
+                margin: 0 0 2px 0 !important;
+                font-size: 8.5px !important;
+                color: #111 !important;
+            }
+
+            .summary-cards {
+                display: block !important;
+                background: none !important;
+                border: none !important;
+                box-shadow: none !important;
+            }
+
+            .summary-card {
+                background: transparent !important;
+                border: 1px solid #111 !important;
+                box-shadow: none !important;
+                margin-bottom: 6px !important;
+                padding: 4px 6px !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+
+            .summary-card h4 {
+                color: #111 !important;
+                font-size: 10px !important;
+                font-weight: 700 !important;
+                margin: 0 0 4px 0 !important;
+                border-bottom: 1px solid #111 !important;
+                padding-bottom: 3px !important;
+            }
+
+            .summary-stats {
+                display: block !important;
+            }
+
+            .summary-stat {
+                display: flex !important;
+                justify-content: space-between !important;
+                padding: 1px 0 !important;
+                border-bottom: none !important;
+                margin-bottom: 0 !important;
+            }
+
+            .summary-label {
+                color: #111 !important;
+                font-size: 8.5px !important;
+                font-weight: normal !important;
+            }
+
+            .summary-value {
+                color: #111 !important;
+                font-size: 8.5px !important;
+                font-weight: 700 !important;
+            }
+        }
+    </style>
+</body>
+</html>

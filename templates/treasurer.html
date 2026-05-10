@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Treasurer Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='treasurer.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Treasurer Dashboard</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="#" class="signout-btn" onclick="confirmSignOut()">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="treasurer-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('treasurer') }}" class="nav-tab active">Dashboard</a></li>
+                <li><a href="{{ url_for('treasurer_reports') }}" class="nav-tab">Financial Reports</a></li>
+                <li><a href="{{ url_for('treasurer_analytics') }}" class="nav-tab">Analytics</a></li>
+                <li><a href="{{ url_for('treasurer_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('treasurer_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('treasurer_audit_trail') }}" class="nav-tab">Fund Management</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <h2>Financial Overview</h2>
+            <p>Monitor platform finances and donation trends.</p>
+            
+            <div class="dashboard-layout">
+                <div class="recent-stats-section">
+                    <div class="stat-card small recent">
+                        <h3>Quick Stats</h3>
+                        <div class="recent-stats">
+                            <!-- <div class="recent-item">
+                                <span class="recent-number">{{ financial_stats.unique_donors }}</span>
+                                <span class="recent-label">Unique Donors</span>
+                            </div> -->
+                            <div class="recent-item">
+                                <span class="recent-number">{{ financial_stats.active_campaigns }}</span>
+                                <span class="recent-label">Active Campaigns</span>
+                            </div>
+                            <div class="recent-item">
+                                <span class="recent-number">{{ financial_stats.total_donations }}</span>
+                                <span class="recent-label">Total Transactions</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="main-stats-section">
+                    <div class="dashboard-cards primary-stats">
+                        <div class="stat-card urgent small">
+                            <h3>Pending Amount</h3>
+                            <p class="stat-number small" style="color: #FFA500;">₱{{ "{:,.0f}".format(financial_stats.pending_amount) }}</p>
+                            <p class="stat-subtitle">Awaiting Processing</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Total Revenue</h3>
+                            <p class="stat-number small">₱{{ "{:,.0f}".format(financial_stats.total_revenue) }}</p>
+                            <p class="stat-subtitle">Successfully Processed</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Failed Amount</h3>
+                            <p class="stat-number small" style="color: #FD7676;">₱{{ "{:,.0f}".format(financial_stats.failed_amount) }}</p>
+                            <p class="stat-subtitle">Failed Transactions</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Monthly Revenue Trend</h3>
+                    <canvas id="revenueChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Payment Methods</h3>
+                    <canvas id="paymentMethodsChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Top Performing Fundraisers</h3>
+                    <canvas id="topFundraisersChart"></canvas>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <h3>Recent Transactions</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Reference #</th>
+                                <th>Donor</th>
+                                <th>Fundraiser</th>
+                                <th>Amount</th>
+                                <th>Payment Method</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                            <tr>
+                                <td>{{ transaction.don_date.strftime('%Y-%m-%d %H:%M') if transaction.don_date else 'N/A' }}</td>
+                                <td>{{ transaction.don_refnum }}</td>
+                                <td>{{ transaction.donor_name or transaction.don_donorname }}</td>
+                                <td>{% if transaction.fund_title %}{{ transaction.fund_title[:30] }}{% if transaction.fund_title|length > 30 %}...{% endif %}{% else %}N/A{% endif %}</td>
+                                <td>₱{{ "{:,.2f}".format(transaction.don_amount) }}</td>
+                                <td>{{ transaction.don_paymethod }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ transaction.don_status.lower() }}">
+                                        {{ transaction.don_status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <!-- Data for JavaScript -->
+    <script type="application/json" id="monthly-revenue-data">{{ monthly_revenue | tojson }}</script>
+    <script type="application/json" id="payment-methods-data">{{ payment_methods | tojson }}</script>
+    <script type="application/json" id="top-fundraisers-data">{{ top_fundraisers | tojson }}</script>
+
+    <script>
+        Chart.defaults.font.family = 'Satoshi, sans-serif';
+        Chart.defaults.color = '#6c757d';
+
+        // Monthly Revenue Chart
+        const monthlyRevenue = JSON.parse(document.getElementById('monthly-revenue-data').textContent);
+        const revenueLabels = monthlyRevenue.map(item => {
+            const date = new Date(item.month + '-01');
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        }).reverse();
+        const revenueData = monthlyRevenue.map(item => parseFloat(item.revenue)).reverse();
+
+        const revenueChart = new Chart(document.getElementById('revenueChart'), {
+            type: 'line',
+            data: {
+                labels: revenueLabels,
+                datasets: [{
+                    label: 'Revenue (₱)',
+                    data: revenueData,
+                    borderColor: '#916DE8',
+                    backgroundColor: 'rgba(145, 109, 232, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Payment Methods Chart
+        const paymentMethods = JSON.parse(document.getElementById('payment-methods-data').textContent);
+        const paymentLabels = paymentMethods.map(item => item.don_paymethod);
+        const paymentData = paymentMethods.map(item => parseFloat(item.total_amount));
+
+        const paymentMethodsChart = new Chart(document.getElementById('paymentMethodsChart'), {
+            type: 'doughnut',
+            data: {
+                labels: paymentLabels,
+                datasets: [{
+                    data: paymentData,
+                    backgroundColor: [
+                        '#AC8AFD',
+                        '#FFEC9E',
+                        '#FFADAD',
+                        '#A4FFAA',
+                        '#9BF6FF'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        // Top Fundraisers Chart
+        const topFundraisers = JSON.parse(document.getElementById('top-fundraisers-data').textContent);
+        const fundraiserLabels = topFundraisers.map(item => 
+            item.fund_title.length > 20 ? item.fund_title.substring(0, 20) + '...' : item.fund_title
+        );
+        const fundraiserData = topFundraisers.map(item => parseFloat(item.total_raised));
+
+        const topFundraisersChart = new Chart(document.getElementById('topFundraisersChart'), {
+            type: 'bar',
+            data: {
+                labels: fundraiserLabels,
+                datasets: [{
+                    label: 'Amount Raised (₱)',
+                    data: fundraiserData,
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#916DE8',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    </script>
+
+    <style>
+        .recent-transactions {
+            margin-top: 2rem;
+            background: white;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .recent-transactions h3 {
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            font-size: 13px;
+            table-layout: fixed;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 6px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eef0f2;
+            vertical-align: middle;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .data-table thead th {
+            background: #efe9ff;
+            color: #333;
+            font-weight: 600;
+            text-align: left;
+            border-bottom: 2px solid #e6e9ee;
+        }
+
+        .data-table tbody tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .data-table tbody tr:hover {
+            background: linear-gradient(90deg, rgba(245, 247, 250, 0.6), rgba(255, 255, 255, 0.6));
+        }
+
+        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 13%; font-size: 11px; } /* Date */
+        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 14%; font-size: 11px; } /* Ref # */
+        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 12%; font-size: 11px; } /* Donor Name */
+        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 26%; font-size: 11px; }  /* Fundraiser */
+        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 10%; font-size: 11px; } /* Amount */
+        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 14%; font-size: 11px; } /* Payment Method */
+        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 11%; font-size: 11px; } /* Status */
+
+        .data-table th {
+            font-size: 12px !important;
+        }
+
+        @media (max-width: 900px) {
+            .data-table th,
+            .data-table td {
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+        }
+
+        .status-badge {
+            padding: 4px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .status-paid {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-failed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-cancelled {
+            background-color: #e2e3e5;
+            color: #6c757d;
+        }
+
+        .nav-tab.cash-donations {
+            border-left: 2px solid #ddd !important;
+            padding-left: calc(2.4rem - 2px) !important;
+        }
+
+        .signout-btn {
+            color: #dc3545;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: text-decoration 0.3s ease;
+            margin-left: 1rem;
+        }
+
+        .signout-btn:hover {
+            text-decoration: underline;
+            color: #dc3545;
+        }
+    </style>
+
+    <script>
+        function confirmSignOut() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        }
+    </script>
+</body>
+</html>

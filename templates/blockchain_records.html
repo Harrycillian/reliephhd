@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>ReliePH — Blockchain Donation Records</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='blockchain_records.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    th, td { padding: 8px 10px; border: 1px solid #ddd; }
+    th { background: #f5f5f5; text-align: left; }
+    tr:nth-child(even) { background: #fafafa; }
+    .mono { font-family: monospace; }
+    
+    .back-button {
+      display: inline-block;
+      padding: 10px 20px;
+      margin-bottom: 20px;
+      background: #916de8;
+      color: white;
+      text-decoration: none;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+    
+    .back-button:hover {
+      background: #ae8bff;
+    }
+    
+    .back-button:before {
+      content: "← ";
+    }
+  </style>
+</head>
+<body>
+  <a href="javascript:history.back()" class="back-button">Back</a>
+  <!-- <h1>Blockchain Donation Records</h1>
+  <p>These records show donations with encrypted donor payloads and the payload SHA-256 hash. The platform stores the encrypted payload and the platform can optionally publish payload hashes on-chain for stronger tamper-evidence.</p> -->
+
+  <section class="records-filter">
+    <form method="GET" action="{{ url_for('blockchain_records') }}" class="records-filter-form" id="date-range-filter">
+      <div class="filter-field">
+        <label for="start_date">From</label>
+        <input type="date" id="start_date" name="start_date" value="{{ filters.start_date if filters else '' }}">
+      </div>
+      <div class="filter-field">
+        <label for="end_date">To</label>
+        <input type="date" id="end_date" name="end_date" value="{{ filters.end_date if filters else '' }}">
+      </div>
+      <div class="filter-field fundraiser-filter">
+        <label for="fundraiser_id">Fundraiser</label>
+        <select id="fundraiser_id" name="fundraiser_id">
+          <option value="all" {% if not filters or filters.fundraiser_id == 'all' %}selected{% endif %}>All Fundraisers</option>
+          {% for fundraiser in fundraiser_options %}
+          <option value="{{ fundraiser.fund_id }}" {% if filters and filters.fundraiser_id|string == fundraiser.fund_id|string %}selected{% endif %}>
+            {{ fundraiser.fund_title }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="filter-btn">Apply Filters</button>
+        <a href="{{ url_for('blockchain_records') }}" class="clear-filter-btn">Clear</a>
+      </div>
+    </form>
+  </section>
+
+  <table id="records-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Fundraiser</th>
+        <th>Amount</th>
+        <th>Reference #</th>
+        <th>Tx Hash</th>
+        <th>Block</th>
+        <!-- <th>ID Verification Code</th>
+        <th>History</th> -->
+      </tr>
+    </thead>
+    <tbody>
+      {% if records and records|length > 0 %}
+        {% for r in records %}
+          <tr>
+            <td>{{ r.date | default('') }}</td>
+            <td>{{ r.fund_title or r.fund_id or '' }}</td>
+            <td>{% if r.amount is not none %}₱ {{ '%.2f'|format(r.amount) }}{% endif %}</td>
+            <td class="mono">{{ r.refnum or '' }}</td>
+            <td class="mono">{% if r.tx_hash %}<a href="{{ url_for('blockchain_transaction_details', tx_hash=r.tx_hash) }}">{{ r.tx_hash }}</a>{% endif %}</td>
+            <td>{{ r.block_number or '' }}</td>
+            <!-- <td class="mono">{{ r.payload_hash or '' }}</td>
+            <td><a href="{{ url_for('view_payload_history_by_ref', refnum=r.refnum) }}" style="color: #916de8; text-decoration: none; font-weight: 600;">View History</a></td> -->
+          </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6">No records found.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <div class="pagination-container">
+      <div class="pagination-info">
+          <span class="pagination-text">
+              Showing {{ [pagination.per_page, pagination.total - ((pagination.page - 1) * pagination.per_page)] | min if pagination.total else 0 }}
+              out of {{ pagination.total }} entries
+          </span>
+      </div>
+      <div class="pagination-controls">
+      <a href="{{ url_for('blockchain_records', page=pagination.prev_num) if pagination.has_prev else '#' }}" 
+      data-page="{{ pagination.prev_num if pagination.has_prev else '' }}"
+      class="pagination-btn {{ 'disabled' if not pagination.has_prev else '' }}">
+              <span>Previous</span>
+          </a>
+          
+          <div class="pagination-pages">
+              {% for page_num in range(1, [pagination.total_pages, 3] | min + 1) %}
+                  {% if page_num == pagination.page %}
+                      <span class="pagination-page active">{{ page_num }}</span>
+                  {% else %}
+                      <a href="{{ url_for('blockchain_records', page=page_num) }}" data-page="{{ page_num }}" class="pagination-page">{{ page_num }}</a>
+                  {% endif %}
+              {% endfor %}
+          </div>
+
+      <a href="{{ url_for('blockchain_records', page=pagination.total_pages) if pagination.page < pagination.total_pages else '#' }}"
+      data-page="{{ pagination.total_pages if pagination.page < pagination.total_pages else '' }}"
+      class="pagination-btn {{ 'disabled' if pagination.page >= pagination.total_pages else '' }}">
+              <span>Last</span>
+          </a>
+          
+      <a href="{{ url_for('blockchain_records', page=pagination.next_num) if pagination.has_next else '#' }}" 
+      data-page="{{ pagination.next_num if pagination.has_next else '' }}"
+      class="pagination-btn {{ 'disabled' if not pagination.has_next else '' }}">
+              <span>Next</span>
+          </a>
+      </div>
+  </div>
+
+  {% if pagination is defined %}
+  <script>
+    function setupDateRangeValidation() {
+      const dateRangeForm = document.getElementById('date-range-filter');
+      const startDateInput = document.getElementById('start_date');
+      const endDateInput = document.getElementById('end_date');
+
+      if (!dateRangeForm || !startDateInput || !endDateInput) return;
+
+      function validateDateRange() {
+        const isBackwards = startDateInput.value && endDateInput.value && startDateInput.value > endDateInput.value;
+        const message = isBackwards ? 'Start date cannot be after end date.' : '';
+
+        startDateInput.setCustomValidity(message);
+        endDateInput.setCustomValidity(message);
+        return !isBackwards;
+      }
+
+      startDateInput.addEventListener('change', validateDateRange);
+      endDateInput.addEventListener('change', validateDateRange);
+      dateRangeForm.addEventListener('submit', function(event) {
+        if (!validateDateRange()) {
+          event.preventDefault();
+          endDateInput.reportValidity();
+        }
+      });
+    }
+
+    // Attach click handlers to pagination links and preserve existing query params
+    function goToPage(page) {
+      if (!page) return;
+      const url = new URL(window.location.href);
+      url.searchParams.set('page', page);
+      // If navigating to first page, optionally remove the page param to keep clean URLs
+      // if (String(page) === '1') url.searchParams.delete('page');
+      window.location.href = url.toString();
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      setupDateRangeValidation();
+
+      document.querySelectorAll('.pagination-page[data-page], .pagination-btn[data-page]').forEach(el => {
+        if (el.classList.contains('disabled')) return;
+        el.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          const p = this.getAttribute('data-page');
+          goToPage(p);
+        });
+      });
+    });
+  </script>
+  {% endif %}

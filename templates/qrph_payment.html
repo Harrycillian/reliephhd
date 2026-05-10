@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ReliePH | QR Ph Payment</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='qrph_payment.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+  <header class="navbar qrph-navbar">
+    <div class="nav-left">
+      <a href="{{ donate_url }}" class="back-link">&lt; &nbsp; Donate</a>
+    </div>
+    <div class="nav-center">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+      </a>
+    </div>
+    <div class="nav-right"></div>
+  </header>
+
+  <main class="qrph-container">
+    <section class="qrph-panel">
+      <div class="qrph-heading">
+        <img src="{{ url_for('static', filename='images/qr.png') }}" alt="QR Ph Icon" class="qrph-icon" style="height: 40px; width: 40px;">
+        <h1>Scan to Pay</h1>
+      </div>
+
+      {% if qr_data and not is_expired %}
+        <p class="qrph-subtitle">Use your bank or e-wallet app to scan this QR Ph code.</p>
+        <div class="qrph-code-frame">
+          <img src="{{ qr_data.image_url }}" alt="QR Ph payment code" class="qrph-code-image">
+        </div>
+        <div class="qrph-details">
+          <!-- <p>Reference <strong>To be provided after verification</strong></p> -->
+          <p>Amount <strong>&#8369;{{ "{:,.2f}".format(donation.don_amount) }}</strong></p>
+        </div>
+        <p class="qrph-status" id="qrph-status">Waiting for transaction...</p>
+      {% else %}
+        <p class="qrph-subtitle">This QR code is no longer available. Please generate a new QR Ph transaction.</p>
+        <a href="{{ donate_url }}" class="qrph-action">Generate New QR Code</a>
+      {% endif %}
+    </section>
+  </main>
+
+  {% if qr_data and not is_expired %}
+  <script>
+    const statusUrl = "{{ status_url }}";
+    const verificationUrl = "{{ verification_url }}";
+    const statusText = document.getElementById('qrph-status');
+
+    async function checkPaymentStatus() {
+      try {
+        const response = await fetch(statusUrl, { cache: 'no-store' });
+        if (!response.ok) return;
+
+        const data = await response.json();
+        if (data.status === 'Paid') {
+          statusText.textContent = 'Payment received. Redirecting to verification...';
+          window.location.href = verificationUrl;
+        } else if (data.status === 'Failed' || data.status === 'Cancelled') {
+          statusText.textContent = 'Payment was not completed. Please generate a new QR code.';
+          clearInterval(statusTimer);
+        }
+      } catch (error) {
+        console.error('Unable to check QR Ph status:', error);
+      }
+    }
+
+    const statusTimer = setInterval(checkPaymentStatus, 5000);
+    checkPaymentStatus();
+  </script>
+  {% endif %}
+</body>
+</html>

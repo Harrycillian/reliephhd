@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Fundraiser Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab active">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="fundraiser-section">
+        <div class="funds-stats">
+            <div class="funds-stat-card">
+                <h3>Total Raised</h3>
+                <p class="funds-stat-number">₱{{ "{:,.0f}".format(fundraisers|sum(attribute='total_raised')) }}</p>
+            </div>
+            <div class="funds-stat-card urgent">
+                <h3>Pending Review</h3>
+                <p class="funds-stat-number">{{ fundraisers|selectattr('fund_status', 'equalto', 'Pending')|list|length }}</p>
+            </div>
+            <div class="funds-stat-card">
+                <h3>Active Campaigns</h3>
+                <p class="funds-stat-number">{{ fundraisers|selectattr('fund_status', 'equalto', 'Active')|list|length }}</p>
+            </div>
+            <div class="funds-stat-card">
+                <h3>Average Goal</h3>
+                <p class="funds-stat-number">₱{{ "{:,.0f}".format((fundraisers|sum(attribute='fund_goalamount') / fundraisers|length) if fundraisers|length > 0 else 0) }}</p>
+            </div>
+        </div>
+
+        <div class="fundapp_table">
+            <div class="fundsss">
+                <div class="fundleft">
+                    <h2>Fundraiser Management</h2>
+                    <p>Manage and review all fundraisers on the platform.</p>
+                </div>
+                <div class="fundfund">
+                    <button class="scrape_btn" id="scrapeBtn">
+                        <img src="{{ url_for('static', filename='images/pesbuk_hover.png') }}" alt="Facebook">
+                        <span class="btn-text">Run Crowdsourcing</span>
+                        <span class="loading-spinner" style="display: none;">
+                            <div class="spinner"></div>
+                        </span>
+                    </button>
+                </div>
+            </div>
+            <div class="funds-filters">
+                <div class="filter-group">
+                    <label>Filter by Status:</label>
+                    <div class="custom-dropdown">
+                        <div class="dropdown-trigger" id="statusFilterDropdown">
+                            <span class="dropdown-text">All Status</span>
+                            <span class="dropdown-arrow">▼</span>
+                        </div>
+                        <div class="dropdown-content" id="statusFilterContent">
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="pending-status" data-status="Pending" checked>
+                                <label for="pending-status">Pending</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="active-status" data-status="Active" checked>
+                                <label for="active-status">Active</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="disapproved-status" data-status="Disapproved" checked>
+                                <label for="disapproved-status">Disapproved</label>
+                            </div>
+                            <div class="dropdown-item">
+                                <input type="checkbox" id="completed-status" data-status="Completed" checked>
+                                <label for="completed-status">Completed</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <label for="searchFunds">Search:</label>
+                    <input type="text" id="searchFunds" class="filter-input" placeholder="Search by title, ID, amount, progress, or date...">
+                </div>
+                <div class="filter-group">
+                    <button id="clearFilters" class="clear-btn">Clear</button>
+                </div>
+            </div>
+
+            <div class="tablez">
+                <table>
+                    <thead>
+                        <tr class="fund_header">
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Goal Amount</th>
+                            <th>Raised</th>
+                            <th>Progress</th>
+                            <th>Date Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="fund_body">
+                        {% for fund in fundraisers %}
+                        <tr class="fund_row" data-status="{{ fund.fund_status }}">
+                            <td>{{ fund.fund_id }}</td>
+                            <td class="fund-title-cell">{{ fund.fund_title }}</td>
+                            <td>₱{{ "{:,}".format(fund.fund_goalamount|int) }}</td>
+                            <td>₱{{ "{:,.2f}".format(fund.total_raised|float) }}</td>
+                            <td>
+                                {% set total_raised = fund.total_raised|float if fund.total_raised else 0 %}
+                                {% set goal_amount = fund.fund_goalamount|float if fund.fund_goalamount else 0 %}
+                                {% set progress = ((total_raised / goal_amount) * 100) if goal_amount > 0 else 0 %}
+                                {% if progress > 100 %}{% set progress = 100 %}{% endif %}
+                                <div class="progress-mini">
+                                    {% set progress_class = (progress|round|int // 5) * 5 %}
+                                    {% if progress_class > 100 %}{% set progress_class = 100 %}{% endif %}
+                                    <div class="progress-bar-mini progress-{{ progress_class }}"></div>
+                                    <span class="progress-text">{{ progress|round|int }}%</span>
+                                </div>
+                            </td>
+                            <td>{{ fund.fund_startdate | time_ago }}</td>
+                            <td class="
+                                {% if fund.fund_status == 'Pending' %}status-pending
+                                {% elif fund.fund_status == 'Active' %}status-approved
+                                {% elif fund.fund_status == 'Disapproved' %}status-disapproved
+                                {% elif fund.fund_status == 'Completed' %}status-completed
+                                {% endif %}
+                            ">
+                                <p class="statuz">{{ fund.fund_status }}</p>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('admin_view_fundraiser', fundraiser_id=fund.fund_id) }}" class="view_fund">
+                                        <img src="{{ url_for('static', filename='images/view.png') }}" alt="View" title="View Fundraiser Details">
+                                    </a>
+                                    <!-- <a class="approve_btn" href="#" data-id="{{ fund.fund_id }}">
+                                        <img src="{{ url_for('static', filename='images/approve.png') }}" alt="Approve" title="Approve Fundraiser">
+                                    </a>
+                                    <a class="disapprove_btn" href="#" data-id="{{ fund.fund_id }}">
+                                        <img src="{{ url_for('static', filename='images/disapprove.png') }}" alt="Disapprove" title="Disapprove Fundraiser">
+                                    </a> -->
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="pagination-container">
+                <div class="pagination-info">
+                    <span class="pagination-text">
+                        Showing {{ [pagination.per_page, pagination.total - ((pagination.page - 1) * pagination.per_page)] | min if pagination.total > 0 else 0 }}
+                        out of {{ pagination.total }} entries
+                    </span>
+                </div>
+                <div class="pagination-controls">
+                    <a href="{{ url_for('admin_funds', page=pagination.prev_num) if pagination.has_prev else '#' }}" 
+                    class="pagination-btn {{ 'disabled' if not pagination.has_prev else '' }}">
+                        <span>Previous</span>
+                    </a>
+                    
+                    <div class="pagination-pages">
+                        {% for page_num in range(1, [pagination.total_pages, 3] | min + 1) %}
+                            {% if page_num == pagination.page %}
+                                <span class="pagination-page active">{{ page_num }}</span>
+                            {% else %}
+                                <a href="{{ url_for('admin_funds', page=page_num) }}" class="pagination-page">{{ page_num }}</a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+
+                    <a href="{{ url_for('admin_funds', page=pagination.total_pages) if pagination.page < pagination.total_pages else '#' }}"
+                    class="pagination-btn {{ 'disabled' if pagination.page >= pagination.total_pages else '' }}">
+                        <span>Last</span>
+                    </a>
+                    
+                    <a href="{{ url_for('admin_funds', page=pagination.next_num) if pagination.has_next else '#' }}" 
+                    class="pagination-btn {{ 'disabled' if not pagination.has_next else '' }}">
+                        <span>Next</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="loading_modal" id="loadingModal">
+        <div class="loading_frame">
+            <div class="loading_content">
+                <div class="loading_spinner_large">
+                    <div class="spinner_large"></div>
+                </div>
+                <h2>Running Crowdsourcing</h2>
+                <p class="loading_text" id="loadingText">Initializing Facebook scraper...</p>
+                <div class="loading_progress">
+                    <div class="progress_bar" id="progressBar"></div>
+                    <span class="progress_text" id="progressText">0%</span>
+                </div>
+                <p class="loading_note">This process may take 2-5 minutes. Please don't close this window.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="scraped_modal" id="scrapedModal">
+        <div class="scraped_frame">
+            <button id="close_scraped" class="close_scraped">
+                <img src="{{ url_for('static', filename='images/close.png') }}" alt="Close" class="close_icon">
+            </button>
+            <div class="scraped_cont">
+                <h2>Pending Fundraisers</h2>
+                <p class="scraped_count">Found <span id="scrapedCount">0</span> pending fundraisers ready for approval</p>
+                
+                <div class="scraped_actions">
+                    <button id="selectAll" class="select_all_btn">Select All</button>
+                    <button id="deselectAll" class="deselect_all_btn">Deselect All</button>
+                </div>
+                
+                <div class="scraped_list" id="scrapedList">
+                    <!-- Scraped fundraisers -->
+                </div>
+                
+                <div class="scraped_modal_actions">
+                    <button id="approveSelected" class="approve_selected_btn">Approve Selected</button>
+                    <button id="closeScrapedModal" class="close_scraped_btn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutButton = document.querySelector('.logout');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', (event) => {
+                    const confirmation = confirm('Are you sure you want to sign out?');
+                    if (!confirmation) {
+                        event.preventDefault();
+                    }
+                });
+            }
+
+            const scrapeButton = document.querySelector('.scrape_btn');
+            if (scrapeButton) {
+                scrapeButton.addEventListener('click', async (event) => {
+                    event.preventDefault();
+                    
+                    const confirmation = confirm('This will run the Facebook crowdsourcing scraper and may take a while. Continue?');
+                    if (!confirmation) {
+                        return;
+                    }
+                    
+                    showLoadingModal();
+                    
+                    try {
+                        const response = await fetch('/crowdsource-from-facebook', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            }
+                        });
+                        
+                        const data = await response.json();
+                        
+                        hideLoadingModal();
+                        
+                        if (data.success) {
+                            if (data.inserted_count > 0) {
+                                alert(`Successfully scraped and inserted ${data.inserted_count} fundraisers with Pending status!`);
+                                fetchPendingFundraisers();
+                            } else {
+                                alert('No disaster-related fundraisers found in the scraped posts.');
+                            }
+                        } else {
+                            alert('Error during scraping: ' + data.error);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        hideLoadingModal();
+                        alert('An error occurred while scraping. Please try again.');
+                    }
+                });
+            }
+
+            function showLoadingModal() {
+            const loadingModal = document.getElementById('loadingModal');
+            const loadingText = document.getElementById('loadingText');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            loadingModal.style.display = 'block';
+            
+            const progressSteps = [
+                { text: 'Connecting to Facebook...', progress: 10 },
+                { text: 'Scraping posts from disaster relief groups...', progress: 25 },
+                { text: 'Analyzing posts with AI model...', progress: 50 },
+                { text: 'Filtering disaster-related content...', progress: 75 },
+                { text: 'Generating fundraiser descriptions...', progress: 90 },
+                { text: 'Inserting fundraisers into database...', progress: 95 },
+                { text: 'Finalizing results...', progress: 100 }
+            ];
+            
+            let currentStep = 0;
+            
+            const updateProgress = () => {
+                if (currentStep < progressSteps.length) {
+                    const step = progressSteps[currentStep];
+                    loadingText.textContent = step.text;
+                    progressBar.style.width = step.progress + '%';
+                    progressText.textContent = step.progress + '%';
+                    currentStep++;
+                    
+                    const nextUpdate = Math.random() * 4000 + 8000;
+                    setTimeout(updateProgress, nextUpdate);
+                }
+            };
+            
+            setTimeout(updateProgress, 1000);
+        }
+
+            function hideLoadingModal() {
+                const loadingModal = document.getElementById('loadingModal');
+                loadingModal.style.display = 'none';
+            }
+
+            async function fetchPendingFundraisers() {
+            try {
+                const response = await fetch('/api/pending-fundraisers', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    if (data.fundraisers.length > 0) {
+                        showScrapedModal(data.fundraisers);
+                    } else {
+                        alert('No pending fundraisers found.');
+                    }
+                } else {
+                    alert('Error fetching pending fundraisers: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while fetching pending fundraisers. Please try again.');
+            }
+        }
+
+            function showScrapedModal(fundraisers) {
+            const modal = document.getElementById('scrapedModal');
+            const countElement = document.getElementById('scrapedCount');
+            const listElement = document.getElementById('scrapedList');
+            
+            countElement.textContent = fundraisers.length;
+            listElement.innerHTML = '';
+            
+            fundraisers.forEach((fundraiser, index) => {
+                const fundraiserElement = document.createElement('div');
+                fundraiserElement.className = 'scraped_fundraiser_item';
+                fundraiserElement.innerHTML = `
+                    <div class="fundraiser_checkbox">
+                        <input type="checkbox" id="fundraiser_${index}" class="fundraiser_check" data-fund-id="${fundraiser.fund_id}">
+                        <label for="fundraiser_${index}"></label>
+                    </div>
+                    <div class="fundraiser_content">
+                        <h3 class="fundraiser_title">${fundraiser.fund_title}</h3>
+                        <p class="fundraiser_goal">Goal: ₱${parseFloat(fundraiser.fund_goalamount).toLocaleString()}</p>
+                        <p class="fundraiser_beneficiary">Beneficiary: ${fundraiser.fund_beneficiary || 'Emergency Relief'}</p>
+                        <div class="fundraiser_description">
+                            <p>${fundraiser.fund_desc.substring(0, 200)}${fundraiser.fund_desc.length > 200 ? '...' : ''}</p>
+                        </div>
+                        <div class="fundraiser_meta">
+                            <span class="fundraiser_date">Created: ${new Date(fundraiser.fund_startdate).toLocaleDateString()}</span>
+                            ${fundraiser.fund_link && fundraiser.fund_link !== 'generated-link' ? 
+                                `<a href="${fundraiser.fund_link}" target="_blank" class="facebook_link">View Original Post</a>` : 
+                                '<span class="no_link">No original post link</span>'
+                            }
+                        </div>
+                    </div>
+                `;
+                listElement.appendChild(fundraiserElement);
+            });
+            
+            modal.style.display = 'block';
+        }
+
+            document.getElementById('close_scraped').addEventListener('click', function() {
+                document.getElementById('scrapedModal').style.display = 'none';
+            });
+
+            document.getElementById('closeScrapedModal').addEventListener('click', function() {
+                document.getElementById('scrapedModal').style.display = 'none';
+            });
+
+            document.getElementById('selectAll').addEventListener('click', function() {
+                document.querySelectorAll('.fundraiser_check').forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+            });
+
+            document.getElementById('deselectAll').addEventListener('click', function() {
+                document.querySelectorAll('.fundraiser_check').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+            });
+
+            document.getElementById('approveSelected').addEventListener('click', async function() {
+            const selectedCheckboxes = document.querySelectorAll('.fundraiser_check:checked');
+            
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one fundraiser to approve.');
+                return;
+            }
+            
+            const fundraiserIds = [];
+            selectedCheckboxes.forEach(checkbox => {
+                fundraiserIds.push(parseInt(checkbox.dataset.fundId));
+            });
+            
+            try {
+                const response = await fetch('/approve-scraped-fundraisers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ fundraiser_ids: fundraiserIds })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Successfully approved ${data.approved_count} fundraisers!`);
+                    document.getElementById('scrapedModal').style.display = 'none';
+                    location.reload();
+                } else {
+                    alert('Error approving fundraisers: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred while approving fundraisers. Please try again.');
+            }
+        });
+
+            const statusFilterDropdown = document.getElementById('statusFilterDropdown');
+            const statusFilterContent = document.getElementById('statusFilterContent');
+            const statusFilterCheckboxes = document.querySelectorAll('#statusFilterContent input[type="checkbox"]');
+            const searchInput = document.getElementById('searchFunds');
+            const clearFiltersBtn = document.getElementById('clearFilters');
+            const tableRows = document.querySelectorAll('.fund_row');
+
+
+            function updateStatusDropdownText() {
+                const checkedBoxes = document.querySelectorAll('#statusFilterContent input[type="checkbox"]:checked');
+                const dropdownText = document.querySelector('#statusFilterDropdown .dropdown-text');
+                
+                if (checkedBoxes.length === 0) {
+                    dropdownText.textContent = 'Select Status';
+                } else if (checkedBoxes.length === statusFilterCheckboxes.length) {
+                    dropdownText.textContent = 'All Status';
+                } else {
+                    dropdownText.textContent = `${checkedBoxes.length} selected`;
+                }
+            }
+
+            function filterTable() {
+                const checkedBoxes = document.querySelectorAll('#statusFilterContent input[type="checkbox"]:checked');
+                const selectedStatuses = Array.from(checkedBoxes).map(cb => cb.getAttribute('data-status').toLowerCase());
+                const searchValue = searchInput.value.toLowerCase();
+
+                let visibleCount = 0;
+                const maxVisible = 30;
+
+                tableRows.forEach(row => {
+                    const status = row.getAttribute('data-status').toLowerCase();
+                    const title = row.querySelector('.fund-title-cell').textContent.toLowerCase();
+                    const id = row.cells[0].textContent.toLowerCase();
+                    const goalAmount = row.cells[2].textContent.toLowerCase();
+                    const raisedAmount = row.cells[3].textContent.toLowerCase();
+                    const progress = row.cells[4].textContent.toLowerCase();
+                    const date = row.cells[5].textContent.toLowerCase();
+
+                    const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(status);
+                    const searchMatch = title.includes(searchValue) || 
+                        id.includes(searchValue) || 
+                        goalAmount.includes(searchValue) || 
+                        raisedAmount.includes(searchValue) || 
+                        progress.includes(searchValue) || 
+                        date.includes(searchValue);
+
+                    if (statusMatch && searchMatch) {
+                        if (visibleCount < maxVisible) {
+                            row.style.display = '';
+                            visibleCount++;
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    } else {
+                        row.style.display = 'none';
+                    }
+                });
+            }
+
+            if (statusFilterDropdown) {
+                statusFilterDropdown.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const isOpen = statusFilterContent.classList.toggle('show');
+                    statusFilterDropdown.parentElement.classList.toggle('open', isOpen);
+                });
+            }
+
+            document.addEventListener('click', function(e) {
+                if (!statusFilterDropdown.contains(e.target)) {
+                    statusFilterContent.classList.remove('show');
+                    statusFilterDropdown.parentElement.classList.remove('open');
+                }
+            });
+
+            statusFilterCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', function(e) {
+                    e.stopPropagation();
+                    updateStatusDropdownText();
+                    filterTable();
+                });
+            });
+
+            searchInput.addEventListener('input', filterTable);
+
+            clearFiltersBtn.addEventListener('click', function() {
+                // Reset to show all statuses (check all checkboxes)
+                statusFilterCheckboxes.forEach(checkbox => {
+                    checkbox.checked = true;
+                });
+                updateStatusDropdownText();
+                searchInput.value = '';
+                filterTable();
+            });
+
+            updateStatusDropdownText();
+        });
+    </script>
+</body>
+</html>

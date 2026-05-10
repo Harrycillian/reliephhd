@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ReliePH | Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='profile_acc.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}">< Back to Home</a>
+        </div>
+    
+        <div class="nav-center">
+            <a href="{{ url_for('index') }}" class="home">
+                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+            </a>
+        </div>
+    
+        <div class="nav-right">
+            <a href="#" class="" style="color: transparent;">About</a>
+        </div>
+    </header>
+
+    <div class="divide">
+        <div class="leftbar">
+            <form class="sidebar" id="profile-nav-form">
+                <div class="hehe">
+                    <img src="{{ url_for('static', filename='images/profile.png') }}" alt="User Icon">
+                    <p>{{ user.name }}</p>
+                </div>
+                <label>
+                    <input type="radio" name="profile_nav" value="fundraisers">
+                    <span>Fundraisers</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="donations">
+                    <span>Donations</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="billing">
+                    <span>Billing</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="account" checked>
+                    <span>Account</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="signout" class="signout">
+                    <span>Sign Out</span>
+                </label>
+            </form>
+        </div>
+
+        <div class="mainscreen">
+            <h2>Account Settings</h2>
+
+            <form class="content">
+                <div class="lol">
+                    <label for="uid">User ID</label>
+                    <input type="text" class="uid" name="uid" id="uid" value="{{ user.id }}" readonly>
+                </div>
+
+                <div class="lol">
+                    <label for="uname">Full Name</label>
+                    <input type="text" class="uname" name="uname" id="uname" value="{{ user.name}}">
+                </div>
+
+                <div class="lol">
+                    <label for="email">Email Address</label>
+                    <input type="email" class="email" name="email" id="email" value="{{ user.email }}">
+                </div>
+
+                <div class="lol">
+                    <label for="num">Mobile Number</label>
+                    <div class="numframe">
+                        <p>(+63)</p>
+                        <input type="text" class="num" name="num" id="num" value="{{ user.number[:3] }} {{ user.number[3:6] }} {{ user.number[6:] }}">
+                    </div>
+                </div>
+
+                <button type="button" class="change_pass">Change Password</button>
+                <button type="submit" class="save_changes">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('profile-nav-form').addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'fundraisers') {
+                window.location.href = "{{ url_for('profile_funds') }}";
+            } else if (value === 'donations') {
+                window.location.href = "{{ url_for('profile_dons') }}";
+            } else if (value === 'billing') {
+                window.location.href = "{{ url_for('profile_bill') }}";
+            } else if (value === 'account') {
+                window.location.href = "{{ url_for('profile_acc') }}";
+            } else if (value === 'signout') {
+                if (confirm('Are you sure you want to sign out?')) {
+                    window.location.href = "{{ url_for('signout') }}";
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const numInput = document.getElementById('num');
+
+            numInput.addEventListener('input', function () {
+                let digits = this.value.replace(/\D/g, '').substring(0, 10);
+
+                let formatted = '';
+                if (digits.length > 0) {
+                    formatted += digits.substring(0, 3);
+                }
+                if (digits.length > 3) {
+                    formatted += ' ' + digits.substring(3, 6);
+                }
+                if (digits.length > 6) {
+                    formatted += ' ' + digits.substring(6, 10);
+                }
+
+                this.value = formatted.trim();
+            });
+        });
+    </script>
+</body>
+</html>

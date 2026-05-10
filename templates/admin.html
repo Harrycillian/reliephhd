@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab active">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <h2>Dashboard Overview</h2>
+            <p>View platform statistics and insights.</p>
+            
+            <div class="dashboard-layout">
+                <div class="recent-stats-section">
+                    <div class="stat-card small recent">
+                        <h3>New This Month</h3>
+                        <div class="recent-stats">
+                            <div class="recent-item">
+                                <span class="recent-number">{{ admin_stats.recent_fundraisers }}</span>
+                                <span class="recent-label">Fundraisers</span>
+                            </div>
+                            <div class="recent-item">
+                                <span class="recent-number">{{ admin_stats.recent_users }}</span>
+                                <span class="recent-label">Users</span>
+                            </div>
+                            <div class="recent-item">
+                                <span class="recent-number">{{ admin_stats.recent_donations }}</span>
+                                <span class="recent-label">Donations</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="main-stats-section">
+                    <div class="dashboard-cards primary-stats">
+                        <div class="stat-card urgent small">
+                            <h3>Pending Approval</h3>
+                            <p class="stat-number small" style="color: #FD7676;">{{ admin_stats.pending_approval }}</p>
+                            <p class="stat-subtitle">Requires Action</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Total Amount Raised</h3>
+                            <p class="stat-number small">₱{{ "{:,.0f}".format(admin_stats.total_amount_raised) }}</p>
+                            <p class="stat-subtitle">Platform Total</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Active Campaigns</h3>
+                            <p class="stat-number small">{{ admin_stats.active_campaigns }}</p>
+                            <p class="stat-subtitle">Currently Running</p>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-cards secondary-stats">
+                        <div class="stat-card small">
+                            <h3>Total Fundraisers</h3>
+                            <p class="stat-number small">{{ admin_stats.total_fundraisers }}</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Total Users</h3>
+                            <p class="stat-number small">{{ admin_stats.total_users }}</p>
+                        </div>
+                        <div class="stat-card small">
+                            <h3>Unique Donors</h3>
+                            <p class="stat-number small">{{ admin_stats.unique_donors }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-container">
+                    <div class="chart-card">
+                        <h3>Fundraiser Status Distribution</h3>
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Monthly Fundraiser Creation</h3>
+                        <canvas id="monthlyChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-card">
+                        <h3>Disaster Categories</h3>
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Donation Amount Distribution</h3>
+                        <canvas id="donationChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>Fundraising Success by Incident</h3>
+                    <canvas id="successByIncidentChart"></canvas>
+                </div>
+                    <!-- <div class="chart-card">
+                        <h3>Analytics by Incident Type</h3>
+                        <canvas id="incidentAnalyticsChart"></canvas>
+                    </div> -->
+                
+                <div class="chart-container top10">
+                    <div class="chart-card full-width">
+                        <h3>Top 10 Fundraisers by Amount Raised</h3>
+                        <canvas id="topFundraisersChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script type="application/json" id="chart-data">{{ chart_data | tojson }}</script>
+    <script>
+
+        // Doughnut Chart - Status
+        const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+        
+        Chart.defaults.font.family = 'Satoshi, sans-serif';
+        Chart.defaults.color = '#6c757d';
+
+        const statusData = chartData.status_counts;
+
+        const statusChart = new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(statusData),
+                datasets: [{
+                    data: Object.values(statusData),
+                    backgroundColor: [
+                        '#AC8AFD', // Active
+                        '#A4FFAA', // Pending
+                        '#FFADAD', // Disapproved
+                        '#FFEC9E' // Completed
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        // Line Chart - Monthly Fundraiser Creation
+        const monthlyData = {};
+        chartData.fundraisers_data.forEach(fund => {
+            if (fund.fund_startdate) {
+                const date = new Date(fund.fund_startdate);
+                const monthYear = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                monthlyData[monthYear] = (monthlyData[monthYear] || 0) + 1;
+            }
+        });
+
+        const sortedMonths = Object.keys(monthlyData).sort((a, b) => new Date(a) - new Date(b));
+        const monthlyChart = new Chart(document.getElementById('monthlyChart'), {
+            type: 'line',
+            data: {
+                labels: sortedMonths,
+                datasets: [{
+                    label: 'Fundraisers Created',
+                    data: sortedMonths.map(month => monthlyData[month]),
+                    borderColor: '#916DE8',
+                    backgroundColor: 'rgba(145, 109, 232, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Pie Chart - Disaster Categories
+        const categoryData = chartData.category_counts;
+
+        const categoryChart = new Chart(document.getElementById('categoryChart'), {
+            type: 'pie',
+            data: {
+                labels: [
+                    'Animal Rescue & Welfare',
+                    'Community',
+                    'Disaster Relief',
+                    'Family',
+                    'Education',
+                    'Livelihood Support',
+                    'Medical',
+                    'Volunteer',
+                    'Other'
+                ],
+                datasets: [{
+                    data: [
+                        categoryData['Animal Rescue & Welfare'] || 0,
+                        categoryData['Community'] || 0,
+                        categoryData['Disaster Relief'] || 0,
+                        categoryData['Family'] || 0,
+                        categoryData['Education'] || 0,
+                        categoryData['Livelihood Support'] || 0,
+                        categoryData['Medical'] || 0,
+                        categoryData['Volunteer'] || 0,
+                        categoryData['Other'] || 0
+                    ],
+                    backgroundColor: [
+                        '#9BF6FF', // Animal Rescue & Welfare
+                        '#CAFFBF', // Community
+                        '#FFADAD', // Disaster Relief
+                        '#FFD6A5', // Family
+                        '#A0C4FF', // Education
+                        '#FDFFB6', // Livelihood Support
+                        '#BDB2FF', // Medical
+                        '#FFC6FF', // Volunteer
+                        '#D0D0D0'  // Other
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        // Incident Analytics Chart - Bar Chart showing total fundraisers by incident type
+        const incidentData = chartData.incident_analytics;
+        const incidentLabels = Object.keys(incidentData);
+        const incidentCounts = incidentLabels.map(label => incidentData[label].total_fundraisers);
+        const incidentRaised = incidentLabels.map(label => incidentData[label].total_raised);
+
+        const incidentAnalyticsCanvas = document.getElementById('incidentAnalyticsChart');
+        if (incidentAnalyticsCanvas) {
+            const incidentAnalyticsChart = new Chart(incidentAnalyticsCanvas, {
+                type: 'bar',
+                data: {
+                    labels: incidentLabels,
+                    datasets: [{
+                        label: 'Total Fundraisers',
+                        data: incidentCounts,
+                        backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                        borderColor: '#916DE8',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fundraising Success by Incident - Mixed Chart
+        const successByIncidentChart = new Chart(document.getElementById('successByIncidentChart'), {
+            type: 'bar',
+            data: {
+                labels: incidentLabels,
+                datasets: [{
+                    label: 'Success Rate (%)',
+                    data: incidentLabels.map(label => incidentData[label].success_rate),
+                    backgroundColor: '#CAFFBF', 
+                    borderColor: '#bbb',
+                    borderWidth: 1,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Total Raised (₱)',
+                    data: incidentRaised,
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#bbb',
+                    borderWidth: 1,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Success Rate'
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Total Raised'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        },
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+
+        // Donation Amount Distribution Bar Chart
+        const donationRanges = {
+            '₱0 - ₱500': 0,
+            '₱501 - ₱1K': 0,
+            '₱1K - ₱5K': 0,
+            '₱5K - ₱10K': 0,
+            '₱10K - ₱25K': 0,
+            '₱25K+': 0
+        };
+
+        // This would need actual donation data from the backend
+        // For now, we'll create sample data based on fundraiser amounts
+        chartData.fundraisers_data.forEach(fund => {
+            const amount = fund.total_raised || 0;
+            if (amount <= 500) donationRanges['₱0 - ₱500']++;
+            else if (amount <= 1000) donationRanges['₱501 - ₱1K']++;
+            else if (amount <= 5000) donationRanges['₱1K - ₱5K']++;
+            else if (amount <= 10000) donationRanges['₱5K - ₱10K']++;
+            else if (amount <= 25000) donationRanges['₱10K - ₱25K']++;
+            else donationRanges['₱25K+']++;
+        });
+
+        const donationChart = new Chart(document.getElementById('donationChart'), {
+            type: 'bar',
+            data: {
+                labels: Object.keys(donationRanges),
+                datasets: [{
+                    label: 'Number of Fundraisers',
+                    data: Object.values(donationRanges),
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#916DE8',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Top 10 Fundraisers by Amount Raised
+        const sortedFundraisers = chartData.fundraisers_data
+            .sort((a, b) => b.total_raised - a.total_raised)
+            .slice(0, 10);
+
+        const topFundraisersChart = new Chart(document.getElementById('topFundraisersChart'), {
+            type: 'bar',
+            data: {
+                labels: sortedFundraisers.map(fund => fund.fund_title.length > 30 ? 
+                    fund.fund_title.substring(0, 30) + '...' : fund.fund_title),
+                datasets: [{
+                    label: 'Amount Raised (₱)',
+                    data: sortedFundraisers.map(fund => fund.total_raised),
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#916DE8',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Amount Raised: ₱' + context.parsed.x.toLocaleString();
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

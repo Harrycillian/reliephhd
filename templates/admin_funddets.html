@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Fundraiser Details</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin_fundraiser_detail.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab active">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="fundraiser-detail-container">
+        <div class="page-actions">
+            <a href="{{ url_for('admin_funds') }}" class="back-button">
+                ← Back to Fundraisers
+            </a>
+            <button id="generateReportBtn" class="report-button" 
+                    data-fundraiser='{{ fundraiser_report_data|tojson|safe }}'
+                    data-donation-stats='{{ donation_stats_report_data|tojson|safe }}'
+                    data-top-donors='{{ top_donors_report_data|tojson|safe }}'
+                    data-recent-donations='{{ recent_donations_report_data|tojson|safe }}'
+                    data-total-raised='{{ total_raised }}'>
+                Generate Report
+            </button>
+        </div>
+
+        <div class="fundraiser-header">
+            <h1 class="fundraiser-title">{{ fundraiser.fund_title }}</h1>
+            <div class="fundraiser-content">
+                <div class="fundraiser-image-section">
+                    {% if fundraiser.fund_img %}
+                        <img src="data:image/jpeg;base64,{{ fundraiser.fund_img|b64encode }}" alt="Fundraiser Image" class="fundraiser-header-image">
+                    {% else %}
+                        <img src="{{ url_for('static', filename='images/placeholder_img.png') }}" alt="Fundraiser Header" class="fundraiser-header-image">
+                    {% endif %}
+                </div>
+                <div class="fundraiser-meta">
+                    <div class="meta-row">
+                        <div class="meta-item">
+                            <span class="meta-label">Fundraiser ID</span>
+                            <span class="meta-value">{{ fundraiser.fund_id }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Status</span>
+                            <span class="meta-value status-badge status-{{ fundraiser.fund_status.lower() }}">{{ fundraiser.fund_status }}</span>
+                        </div>
+                    </div>
+                    <div class="meta-row">
+                        <div class="meta-item">
+                            <span class="meta-label">Beneficiary</span>
+                            <span class="meta-value">{{ fundraiser.fund_beneficiary or 'Not specified' }}</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-label">Created</span>
+                            <span class="meta-value">{{ fundraiser.fund_startdate.strftime('%B %d, %Y %I:%M %p') if fundraiser.fund_startdate else 'Unknown' }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-section">
+                <div class="progress-text">
+                    <span>₱{{ "{:,.0f}".format(total_raised) }} raised</span>
+                    <span>{{ (progress_percentage|int if progress_percentage == 100 else progress_percentage|round(1)) }}% of ₱{{ "{:,.0f}".format(fundraiser.fund_goalamount) }} goal</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+            </div>
+
+            {% if fundraiser.fund_desc %}
+            <div class="fundraiser-description">
+                <h3 class="description-title">Story</h3>
+                <p class="description-text">{{ fundraiser.fund_desc }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">{{ donation_stats.total_donations }}</div>
+                <div class="stat-label">Total Donations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ donation_stats.paid_donations }}</div>
+                <div class="stat-label">Paid Donations</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">{{ donation_stats.pending_donations }}</div>
+                <div class="stat-label">Pending</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">₱{{ "{:,.0f}".format(donation_stats.avg_donation) }}</div>
+                <div class="stat-label">Average Donation</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">₱{{ "{:,.0f}".format(donation_stats.max_donation) }}</div>
+                <div class="stat-label">Largest Donation</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">Recent Donations</h2>
+        <div class="donations-table">
+            <div class="table-header">
+                <div class="table-header-row">
+                    <div>Donor</div>
+                    <div>Amount</div>
+                    <div>Status</div>
+                    <div>Payment Method</div>
+                    <div>Reference</div>
+                    <div>Date</div>
+                </div>
+            </div>
+            <div class="table-content">
+                {% for donation in recent_donations %}
+                <div class="donation-row">
+                    <div>{{ donation.don_donorname or 'Anonymous' }}</div>
+                    <div>₱{{ "{:,.2f}".format(donation.don_amount) }}</div>
+                    <div>
+                        <span class="status-badge status-{{ donation.don_status.lower() }}">
+                            {{ donation.don_status }}
+                        </span>
+                    </div>
+                    <div>{{ donation.don_paymethod }}</div>
+                    <div class="reference-number">{{ donation.don_refnum }}</div>
+                    <div>{{ donation.don_date.strftime('%m/%d/%Y %I:%M %p') if donation.don_date else 'Unknown' }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {% if top_donors %}
+        <h2 class="section-title">Top Donors</h2>
+        <div class="top-donors">
+            {% for donor in top_donors %}
+            <div class="donor-item">
+                <span class="donor-name">{{ donor.don_donorname }}</span>
+                <div>
+                    <span class="donor-amount">₱{{ "{:,.2f}".format(donor.total_donated) }}</span>
+                    <span class="donor-count">({{ donor.donation_count }} donation{{ 's' if donor.donation_count > 1 else '' }})</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if donation_timeline %}
+        <h2 class="section-title">Donation Timeline (Last 30 Days)</h2>
+        <div class="timeline-section">
+            {% for day in donation_timeline %}
+            <div class="timeline-item">
+                <span class="timeline-date">{{ day.donation_date.strftime('%B %d, %Y %I:%M %p') if day.donation_date else 'Unknown' }}</span>
+                <div class="timeline-stats">
+                    <span>{{ day.donation_count }} donation{{ 's' if day.donation_count > 1 else '' }}</span>
+                    <span>₱{{ "{:,.2f}".format(day.daily_amount) }} raised</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if creator %}
+        <h2 class="section-title">Fundraiser Creator</h2>
+        <div class="creator-info">
+            <div class="creator-details">
+                <div class="creator-item">
+                    <span class="creator-label">Name</span>
+                    <span class="creator-value">{{ creator.name }}</span>
+                </div>
+                <div class="creator-item">
+                    <span class="creator-label">Email</span>
+                    <span class="creator-value">{{ creator.email }}</span>
+                </div>
+                <div class="creator-item">
+                    <span class="creator-label">Phone Number</span>
+                    <span class="creator-value">
+                        {% if creator.number and creator.number != 'N/A' and creator.number|length >= 10 %}
+                            (+63) {{ creator.number[:3] }} {{ creator.number[3:6] }} {{ creator.number[6:] }}
+                        {% else %}
+                            {{ creator.number or 'N/A' }}
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="creator-item">
+                    <span class="creator-label">Member Since</span>
+                    <span class="creator-value">{{ creator.date_created.strftime('%B %d, %Y %I:%M %p') if creator.date_created else 'Unknown' }}</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Beneficiaries Section -->
+        <h2 class="section-title">Beneficiaries</h2>
+        <div class="beneficiaries-section">
+            <div class="beneficiaries-header">
+                <button id="addBeneficiaryBtn" class="add-beneficiary-btn">+ Add Beneficiary</button>
+                <div class="beneficiaries-stats">
+                    <span class="beneficiary-count">Total: {{ beneficiaries|length }}</span>
+                    <span class="verified-count">Verified: {{ beneficiaries|selectattr('is_verified', 'equalto', 1)|list|length }}</span>
+                </div>
+            </div>
+            
+            <div class="beneficiaries-list" id="beneficiariesList">
+                {% for beneficiary in beneficiaries %}
+                <div class="beneficiary-card" data-beneficiary-id="{{ beneficiary.beneficiary_id }}">
+                    <div class="beneficiary-header">
+                        <div class="beneficiary-name">
+                            <h3>{{ beneficiary.beneficiary_name }}</h3>
+                            <span class="priority-badge priority-{{ beneficiary.beneficiary_priority }}">Priority {{ beneficiary.beneficiary_priority }}</span>
+                        </div>
+                        <div class="beneficiary-actions">
+                            <button class="edit-beneficiary-btn" data-id="{{ beneficiary.beneficiary_id }}">Edit</button>
+                            <button class="verify-beneficiary-btn" data-id="{{ beneficiary.beneficiary_id }}" 
+                                    data-verified="{{ beneficiary.is_verified }}">
+                                {{ 'Unverify' if beneficiary.is_verified else 'Verify' }}
+                            </button>
+                            <button class="delete-beneficiary-btn" data-id="{{ beneficiary.beneficiary_id }}">Delete</button>
+                        </div>
+                    </div>
+                    <div class="beneficiary-details">
+                        <div class="beneficiary-info">
+                            {% if beneficiary.beneficiary_contact %}
+                            <p><strong>Contact:</strong> {{ beneficiary.beneficiary_contact }}</p>
+                            {% endif %}
+                            {% if beneficiary.beneficiary_relationship %}
+                            <p><strong>Relationship:</strong> {{ beneficiary.beneficiary_relationship }}</p>
+                            {% endif %}
+                            {% if beneficiary.beneficiary_age %}
+                            <p><strong>Age:</strong> {{ beneficiary.beneficiary_age }}</p>
+                            {% endif %}
+                            {% if beneficiary.beneficiary_gender %}
+                            <p><strong>Gender:</strong> {{ beneficiary.beneficiary_gender }}</p>
+                            {% endif %}
+                            {% if beneficiary.beneficiary_address %}
+                            <p><strong>Address:</strong> {{ beneficiary.beneficiary_address }}</p>
+                            {% endif %}
+                            {% if beneficiary.beneficiary_condition %}
+                            <p><strong>Condition:</strong> {{ beneficiary.beneficiary_condition }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="beneficiary-status">
+                            <span class="verification-status {{ 'verified' if beneficiary.is_verified else 'unverified' }}">
+                                {{ 'Verified' if beneficiary.is_verified else 'Unverified' }}
+                            </span>
+                            {% if beneficiary.verification_notes %}
+                            <p class="verification-notes">{{ beneficiary.verification_notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not beneficiaries %}
+                <div class="no-beneficiaries">
+                    <p>No beneficiaries added yet.</p>
+                    <button id="addFirstBeneficiaryBtn" class="add-beneficiary-btn">+ Add First Beneficiary</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Beneficiary Modal -->
+    <div id="beneficiaryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Beneficiary</h2>
+                <span class="close">&times;</span>
+            </div>
+            <form id="beneficiaryForm">
+                <input type="hidden" id="beneficiaryId" name="beneficiary_id">
+                <input type="hidden" id="fundId" name="fund_id" value="{{ fundraiser.fund_id }}">
+                
+                <div class="form-group">
+                    <label for="beneficiaryName">Name *</label>
+                    <input type="text" id="beneficiaryName" name="beneficiary_name" required>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="beneficiaryContact">Contact</label>
+                        <input type="text" id="beneficiaryContact" name="beneficiary_contact">
+                    </div>
+                    <div class="form-group">
+                        <label for="beneficiaryRelationship">Relationship</label>
+                        <input type="text" id="beneficiaryRelationship" name="beneficiary_relationship">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="beneficiaryAge">Age</label>
+                        <input type="number" id="beneficiaryAge" name="beneficiary_age" min="0" max="120">
+                    </div>
+                    <div class="form-group">
+                        <label for="beneficiaryGender">Gender</label>
+                        <select id="beneficiaryGender" name="beneficiary_gender">
+                            <option value="">Select Gender</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="beneficiaryAddress">Address</label>
+                    <textarea id="beneficiaryAddress" name="beneficiary_address" rows="3"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="beneficiaryCondition">Condition/Description</label>
+                    <textarea id="beneficiaryCondition" name="beneficiary_condition" rows="3" 
+                              placeholder="Describe the beneficiary's condition or situation..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="beneficiaryPriority">Priority Level</label>
+                    <select id="beneficiaryPriority" name="beneficiary_priority">
+                        <option value="1">1 - Highest</option>
+                        <option value="2">2 - High</option>
+                        <option value="3">3 - Medium</option>
+                        <option value="4">4 - Low</option>
+                        <option value="5">5 - Lowest</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="cancel-btn">Cancel</button>
+                    <button type="submit" class="save-btn">Save Beneficiary</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        document.getElementById('progress-fill').style.width = '{{ progress_percentage|round(1) }}%';
+        
+        const logoutButton = document.querySelector('.logout');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', (event) => {
+                const confirmation = confirm('Are you sure you want to sign out?');
+                if (!confirmation) {
+                    event.preventDefault();
+                }
+            });
+        }
+
+        // Report Generation
+        const generateReportBtn = document.getElementById('generateReportBtn');
+        if (generateReportBtn) {
+            generateReportBtn.addEventListener('click', function() {
+                generateFormalReport();
+            });
+        }
+
+        function generateFormalReport() {
+            // Get data from button attributes
+            const button = document.getElementById('generateReportBtn');
+            const fundraiser = JSON.parse(button.dataset.fundraiser);
+            const donationStats = JSON.parse(button.dataset.donationStats);
+            const topDonors = JSON.parse(button.dataset.topDonors);
+            const recentDonations = JSON.parse(button.dataset.recentDonations);
+            const totalRaised = parseFloat(button.dataset.totalRaised);
+            
+            // Create a new window for the report
+            const reportWindow = window.open('', '_blank', 'width=800,height=600');
+            
+            // Get current date and time
+            const now = new Date();
+            const reportDate = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            const reportTime = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+
+            // Calculate additional stats
+            const totalDonations = donationStats.total_donations || 0;
+            const avgDonation = donationStats.avg_donation || 0;
+            const pendingDonations = donationStats.pending_donations || 0;
+            const paidDonations = donationStats.paid_donations || 0;
+            
+            // Get top donor
+            const topDonor = topDonors && topDonors.length > 0 ? topDonors[0] : null;
+            
+            // Get payment method stats
+            const paymentMethods = {};
+            if (recentDonations && Array.isArray(recentDonations)) {
+                recentDonations.forEach(donation => {
+                    paymentMethods[donation.don_paymethod] = (paymentMethods[donation.don_paymethod] || 0) + 1;
+                });
+            }
+            const mostUsedPaymentMethod = Object.keys(paymentMethods).length > 0 ? 
+                Object.keys(paymentMethods).reduce((a, b) => 
+                    paymentMethods[a] > paymentMethods[b] ? a : b) : 'N/A';
+
+            // Create the formal report HTML
+            const reportHTML = `
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>ReliePH Fundraiser Report - {{ fundraiser.fund_title }}</title>
+                    <style>
+                        * {
+                            margin: 0;
+                            padding: 0;
+                            box-sizing: border-box;
+                        }
+                        
+                        body {
+                            font-family: 'Arial', sans-serif;
+                            line-height: 1.6;
+                            color: #000;
+                            background: #fff;
+                        }
+                        
+                        .report-container {
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 20px;
+                        }
+                        
+                        .report-header {
+                            border-bottom: 3px solid #000;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        
+                        .header-content {
+                            display: flex;
+                            align-items: center;
+                            justify-content: space-between;
+                            gap: 20px;
+                        }
+                        
+                        .header-left {
+                            flex: 0 0 auto;
+                        }
+                        
+                        .header-right {
+                            flex: 1;
+                            text-align: right;
+                        }
+                        
+                        .muni-logo {
+                            max-height: 80px;
+                            max-width: 120px;
+                            object-fit: contain;
+                        }
+                        
+                        @media (max-width: 768px) {
+                            .header-content {
+                                flex-direction: column;
+                                text-align: center;
+                                gap: 15px;
+                            }
+                            
+                            .header-right {
+                                text-align: center;
+                            }
+                            
+                            .muni-logo {
+                                max-height: 60px;
+                                max-width: 100px;
+                            }
+                        }
+                        
+                        .report-title {
+                            font-size: 28px;
+                            font-weight: bold;
+                            color: #000;
+                            margin-bottom: 10px;
+                        }
+                        
+                        .report-subtitle {
+                            font-size: 16px;
+                            color: #000;
+                            margin-bottom: 5px;
+                        }
+                        
+                        .report-date {
+                            font-size: 14px;
+                            color: #000;
+                        }
+                        
+                        .section {
+                            margin-bottom: 20px;
+                        }
+                        
+                        .section-title {
+                            font-size: 18px;
+                            font-weight: bold;
+                            color: #000;
+                            border-bottom: 2px solid #000;
+                            padding-bottom: 3px;
+                            margin-bottom: 10px;
+                        }
+                        
+                        .info-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 15px;
+                        }
+                        
+                        .info-table th {
+                            background: #000;
+                            color: #fff;
+                            padding: 8px 10px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #000;
+                            font-size: 10px;
+                        }
+                        
+                        .info-table td {
+                            padding: 6px 10px;
+                            border: 1px solid #000;
+                            vertical-align: top;
+                            font-size: 10px;
+                        }
+                        
+                        .info-table tr:nth-child(even) {
+                            background: #f5f5f5;
+                        }
+                        
+                        .stats-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 15px;
+                        }
+                        
+                        .stats-table th {
+                            background: #000;
+                            color: #fff;
+                            padding: 8px 10px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #000;
+                            font-size: 10px;
+                        }
+                        
+                        .stats-table td {
+                            padding: 6px 10px;
+                            border: 1px solid #000;
+                            text-align: left;
+                            font-size: 10px;
+                        }
+                        
+                        .stats-table tr:nth-child(even) {
+                            background: #f5f5f5;
+                        }
+                        
+                        .donations-table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 15px;
+                        }
+                        
+                        .donations-table th {
+                            background: #000;
+                            color: #fff;
+                            padding: 8px 10px;
+                            text-align: left;
+                            font-weight: bold;
+                            border: 1px solid #000;
+                            font-size: 10px;
+                        }
+                        
+                        .donations-table td {
+                            padding: 6px 10px;
+                            border: 1px solid #000;
+                            font-size: 10px;
+                        }
+                        
+                        .donations-table tr:nth-child(even) {
+                            background: #f5f5f5;
+                        }
+                        
+                        .report-footer {
+                            margin-top: 40px;
+                            padding-top: 20px;
+                            border-top: 3px solid #000;
+                            text-align: center;
+                            font-size: 10px;
+                            color: #000;
+                        }
+                        
+                        .amount {
+                            font-weight: bold;
+                        }
+                        
+                        .status {
+                            padding: 4px 8px;
+                            border-radius: 4px;
+                            font-size: 10px;
+                            font-weight: bold;
+                        }
+                        
+                        .status-active {
+                            background: #e8f5e8;
+                            color: #000;
+                        }
+                        
+                        .status-completed {
+                            background: #e8f0ff;
+                            color: #000;
+                        }
+                        
+                        .status-pending {
+                            background: #fff3cd;
+                            color: #000;
+                        }
+                        
+                        @media print {
+                            @page {
+                                size: A4;
+                                margin: 0.5in;
+                            }
+                            
+                            body { 
+                                margin: 0; 
+                                font-size: 10px;
+                                line-height: 1.4;
+                            }
+                            
+                            .report-container { 
+                                padding: 0;
+                                max-width: 100%;
+                                margin: 0;
+                            }
+                            
+                            .close-button { 
+                                display: none !important; 
+                            }
+                            
+                            .report-header {
+                                margin-bottom: 20px;
+                                padding-bottom: 15px;
+                            }
+                            
+                            .header-content {
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                gap: 15px;
+                            }
+                            
+                            .muni-logo {
+                                max-height: 60px;
+                                max-width: 100px;
+                                object-fit: contain;
+                            }
+                            
+                            .header-right {
+                                text-align: right;
+                            }
+                            
+                            .section {
+                                margin-bottom: 15px;
+                                page-break-inside: avoid;
+                            }
+                            
+                            .section-title {
+                                font-size: 16px;
+                                margin-bottom: 8px;
+                            }
+                            
+                            .info-table, .stats-table, .donations-table {
+                                margin-bottom: 12px;
+                                font-size: 10px;
+                            }
+                            
+                            .info-table th, .stats-table th, .donations-table th {
+                                padding: 6px 8px;
+                                font-size: 9px;
+                            }
+                            
+                            .info-table td, .stats-table td, .donations-table td {
+                                padding: 4px 8px;
+                                font-size: 9px;
+                            }
+                            
+                            .report-footer {
+                                margin-top: 20px;
+                                padding-top: 15px;
+                                font-size: 9px;
+                            }
+                            
+                            /* A4 specific optimizations */
+                            .donations-table {
+                                page-break-inside: auto;
+                            }
+                            
+                            .donations-table thead {
+                                display: table-header-group;
+                            }
+                            
+                            .donations-table tbody tr {
+                                page-break-inside: avoid;
+                            }
+                            
+                            /* Ensure tables fit within A4 width */
+                            .info-table, .stats-table, .donations-table {
+                                width: 100%;
+                                table-layout: fixed;
+                            }
+                            
+                            /* Adjust column widths for A4 */
+                            .donations-table th:nth-child(1), .donations-table td:nth-child(1) { width: 20%; }
+                            .donations-table th:nth-child(2), .donations-table td:nth-child(2) { width: 15%; }
+                            .donations-table th:nth-child(3), .donations-table td:nth-child(3) { width: 12%; }
+                            .donations-table th:nth-child(4), .donations-table td:nth-child(4) { width: 15%; }
+                            .donations-table th:nth-child(5), .donations-table td:nth-child(5) { width: 18%; }
+                            .donations-table th:nth-child(6), .donations-table td:nth-child(6) { width: 20%; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="report-container">
+                        <!-- Report Header -->
+                        <div class="report-header">
+                            <div class="header-content">
+                                <div class="header-left">
+                                    <img src="{{ url_for('static', filename='images/muni_logo.png') }}" alt="Municipality Logo" class="muni-logo">
+                                </div>
+                                <div class="header-right">
+                                    <h1 class="report-title">ReliePH Fundraiser Report</h1>
+                                    <p class="report-subtitle">${fundraiser.fund_title}</p>
+                                    <p class="report-date">Generated on ${reportDate} at ${reportTime}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Fundraiser Overview -->
+                        <div class="section">
+                            <h2 class="section-title">Fundraiser Overview</h2>
+                            <table class="info-table">
+                                <tr>
+                                    <th>Field</th>
+                                    <th>Value</th>
+                                </tr>
+                                <tr>
+                                    <td><strong>Fundraiser ID</strong></td>
+                                    <td>${fundraiser.fund_id}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Title</strong></td>
+                                    <td>${fundraiser.fund_title}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Category</strong></td>
+                                    <td>${fundraiser.fund_category || 'Not specified'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Beneficiary Organization / Name</strong></td>
+                                    <td>${fundraiser.fund_beneficiary || 'Not specified'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Goal Amount</strong></td>
+                                    <td class="amount">₱${parseFloat(fundraiser.fund_goalamount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Raised</strong></td>
+                                    <td class="amount">₱${totalRaised.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status</strong></td>
+                                    <td><span class="status status-${fundraiser.fund_status.toLowerCase()}">${fundraiser.fund_status}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Start Date</strong></td>
+                                    <td>${fundraiser.fund_startdate ? new Date(fundraiser.fund_startdate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not specified'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>End Date</strong></td>
+                                    <td>${fundraiser.fund_enddate ? new Date(fundraiser.fund_enddate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Not specified'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Creator ID</strong></td>
+                                    <td>${fundraiser.fund_creatorid}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Donation Summary -->
+                        <div class="section">
+                            <h2 class="section-title">Donation Summary</h2>
+                            <table class="stats-table">
+                                <tr>
+                                    <th>Metric</th>
+                                    <th>Value</th>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Donations Received</strong></td>
+                                    <td>${totalDonations}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Total Amount Raised</strong></td>
+                                    <td class="amount">₱${totalRaised.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Paid Donations</strong></td>
+                                    <td>${paidDonations}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Pending Donations</strong></td>
+                                    <td>${pendingDonations}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Average Donation Amount</strong></td>
+                                    <td class="amount">₱${avgDonation.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Largest Donation</strong></td>
+                                    <td class="amount">₱${(donationStats.max_donation || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Top Donor</strong></td>
+                                    <td>${topDonor ? topDonor.don_donorname + ' (₱' + parseFloat(topDonor.total_donated).toFixed(2) + ')' : 'No donations yet'}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Most Used Payment Method</strong></td>
+                                    <td>${mostUsedPaymentMethod}</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Recent Donations -->
+                        <div class="section">
+                            <h2 class="section-title">Recent Donations</h2>
+                            <table class="donations-table">
+                                <thead>
+                                    <tr>
+                                        <th>Donor Name</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Payment Method</th>
+                                        <th>Reference</th>
+                                        <th>Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${recentDonations.map(donation => `
+                                        <tr>
+                                            <td>${donation.don_donorname || 'Anonymous'}</td>
+                                            <td class="amount">₱${parseFloat(donation.don_amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                            <td><span class="status status-${donation.don_status.toLowerCase()}">${donation.don_status}</span></td>
+                                            <td>${donation.don_paymethod}</td>
+                                            <td>${donation.don_refnum}</td>
+                                            <td>${donation.don_date ? new Date(donation.don_date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Unknown'}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Report Footer -->
+                        <div class="report-footer">
+                            <p><strong>ReliePH - Disaster Relief Platform</strong></p>
+                            <p>This report was generated automatically on ${reportDate} at ${reportTime}</p>
+                            <p>For questions or concerns, please contact the ReliePH administration team.</p>
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Write the HTML to the new window
+            reportWindow.document.write(reportHTML);
+            reportWindow.document.close();
+            
+            // Add event listeners for print dialog
+            reportWindow.addEventListener('beforeprint', function() {
+                console.log('Print dialog opened');
+            });
+            
+            reportWindow.addEventListener('afterprint', function() {
+                console.log('Print dialog closed');
+                // Close the window after printing
+                setTimeout(() => {
+                    if (!reportWindow.closed) {
+                        reportWindow.close();
+                    }
+                }, 1000);
+            });
+            
+            // Add beforeunload listener to detect window close
+            reportWindow.addEventListener('beforeunload', function() {
+                console.log('Report window is being closed');
+            });
+            
+            // Add a close button to the report for manual closing
+            const closeButton = `
+                <div class="close-button" style="position: fixed; top: 10px; right: 10px; z-index: 9999;">
+                    <button onclick="window.close()" style="
+                        background: #000; 
+                        color: white; 
+                        border: none; 
+                        padding: 8px 12px; 
+                        border-radius: 4px; 
+                        cursor: pointer;
+                        font-size: 12px;
+                    ">Close Report</button>
+                </div>
+            `;
+            
+            // Insert close button into the report
+            reportWindow.document.body.insertAdjacentHTML('afterbegin', closeButton);
+
+            // Focus the new window and trigger print
+            reportWindow.focus();
+            setTimeout(() => {
+                reportWindow.print();
+                
+                // Listen for the print dialog close event
+                const checkClosed = setInterval(() => {
+                    if (reportWindow.closed) {
+                        clearInterval(checkClosed);
+                        return;
+                    }
+                    
+                    // Check if the window is still focused (user might have cancelled)
+                    try {
+                        if (reportWindow.document.hasFocus && !reportWindow.document.hasFocus()) {
+                            // Window lost focus, might be cancelled
+                            setTimeout(() => {
+                                if (!reportWindow.closed) {
+                                    reportWindow.close();
+                                }
+                            }, 1000);
+                        }
+                    } catch (e) {
+                        // Cross-origin or other issues, close after a delay
+                        setTimeout(() => {
+                            if (!reportWindow.closed) {
+                                reportWindow.close();
+                            }
+                        }, 2000);
+                    }
+                }, 1000);
+                
+                // Auto-close after 30 seconds if still open
+                setTimeout(() => {
+                    if (!reportWindow.closed) {
+                        reportWindow.close();
+                    }
+                }, 30000);
+            }, 500);
+        }
+
+        // Beneficiaries Management
+        const modal = document.getElementById('beneficiaryModal');
+        const form = document.getElementById('beneficiaryForm');
+        const addBtn = document.getElementById('addBeneficiaryBtn');
+        const addFirstBtn = document.getElementById('addFirstBeneficiaryBtn');
+        const closeBtn = document.querySelector('.close');
+        const cancelBtn = document.querySelector('.cancel-btn');
+
+        // Open modal for adding new beneficiary
+        function openModal() {
+            document.getElementById('modalTitle').textContent = 'Add Beneficiary';
+            form.reset();
+            document.getElementById('beneficiaryId').value = '';
+            modal.style.display = 'block';
+        }
+
+        // Open modal for editing beneficiary
+        function openEditModal(beneficiaryId) {
+            // Fetch beneficiary data and populate form
+            fetch(`/api/beneficiaries/{{ fundraiser.fund_id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const beneficiary = data.beneficiaries.find(b => b.beneficiary_id == beneficiaryId);
+                        if (beneficiary) {
+                            document.getElementById('modalTitle').textContent = 'Edit Beneficiary';
+                            document.getElementById('beneficiaryId').value = beneficiary.beneficiary_id;
+                            document.getElementById('beneficiaryName').value = beneficiary.beneficiary_name;
+                            document.getElementById('beneficiaryContact').value = beneficiary.beneficiary_contact || '';
+                            document.getElementById('beneficiaryRelationship').value = beneficiary.beneficiary_relationship || '';
+                            document.getElementById('beneficiaryAge').value = beneficiary.beneficiary_age || '';
+                            document.getElementById('beneficiaryGender').value = beneficiary.beneficiary_gender || '';
+                            document.getElementById('beneficiaryAddress').value = beneficiary.beneficiary_address || '';
+                            document.getElementById('beneficiaryCondition').value = beneficiary.beneficiary_condition || '';
+                            document.getElementById('beneficiaryPriority').value = beneficiary.beneficiary_priority || 1;
+                            modal.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching beneficiary:', error);
+                    alert('Error loading beneficiary data');
+                });
+        }
+
+        // Close modal
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        // Event listeners
+        addBtn.addEventListener('click', openModal);
+        if (addFirstBtn) addFirstBtn.addEventListener('click', openModal);
+        closeBtn.addEventListener('click', closeModal);
+        cancelBtn.addEventListener('click', closeModal);
+
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert empty strings to null for optional fields
+            Object.keys(data).forEach(key => {
+                if (data[key] === '') data[key] = null;
+            });
+
+            try {
+                const beneficiaryId = document.getElementById('beneficiaryId').value;
+                const url = beneficiaryId ? `/api/beneficiaries/${beneficiaryId}` : '/api/beneficiaries';
+                const method = beneficiaryId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    closeModal();
+                    location.reload(); // Refresh to show updated data
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+
+        // Edit beneficiary buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-beneficiary-btn')) {
+                const beneficiaryId = e.target.dataset.id;
+                openEditModal(beneficiaryId);
+            }
+        });
+
+        // Delete beneficiary buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-beneficiary-btn')) {
+                const beneficiaryId = e.target.dataset.id;
+                const beneficiaryName = e.target.closest('.beneficiary-card').querySelector('h3').textContent;
+                
+                if (confirm(`Are you sure you want to delete ${beneficiaryName}?`)) {
+                    fetch(`/api/beneficiaries/${beneficiaryId}`, {
+                        method: 'DELETE'
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                }
+            }
+        });
+
+        // Verify/Unverify beneficiary buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('verify-beneficiary-btn')) {
+                const beneficiaryId = e.target.dataset.id;
+                const isVerified = e.target.dataset.verified === '1';
+                const action = isVerified ? 'unverify' : 'verify';
+                
+                if (confirm(`Are you sure you want to ${action} this beneficiary?`)) {
+                    const verificationNotes = prompt('Add verification notes (optional):');
+                    
+                    fetch(`/api/beneficiaries/${beneficiaryId}/verify`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            is_verified: !isVerified,
+                            verification_notes: verificationNotes || ''
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred. Please try again.');
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>

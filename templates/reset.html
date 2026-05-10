@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Reset Password</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='reset.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+    <div class="container">
+        <a href="{{ url_for('index') }}" class="home">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+        </a>
+        <h2 class="subtitle">Reset Password</h2>
+        <p class="description">Create new strong password for your account.</p>
+
+        <form action="{{ url_for('reset_password') }}" method="post">
+            <input type="hidden" name="email" value="{{ email }}">
+            <input type="password" id="password" name="password" class="password" minlength="8" maxlength="20" placeholder="New Password" required>
+            <input type="password" id="conf_pass" name="conf_pass" class="conf_pass" minlength="8" maxlength="20" placeholder="Confirm New Password" required>
+            <div class="password-requirements">
+                <p class="requirement-title">Password must contain:</p>
+                <ul class="requirements-list">
+                    <li id="req-length" class="requirement">
+                        <span class="checkmark">✗</span>
+                        At least 8 characters
+                    </li>
+                    <li id="req-uppercase" class="requirement">
+                        <span class="checkmark">✗</span>
+                        At least 1 uppercase letter
+                    </li>
+                    <li id="req-number" class="requirement">
+                        <span class="checkmark">✗</span>
+                        At least 1 number
+                    </li>
+                    <li id="req-symbol" class="requirement">
+                        <span class="checkmark">✗</span>
+                        At least 1 symbol (!@#$%^&*)
+                    </li>
+                </ul>
+            </div>
+            <label class="showpass">
+                <input type="checkbox">Show password
+            </label>
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+
+            <button type="submit">Reset</button>
+        </form>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('reset_success') === '1') {
+            alert("You have now successfully reset your password");
+        }
+
+        const showPasswordCheckbox = document.querySelector('.showpass input[type="checkbox"]');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('conf_pass');
+
+        showPasswordCheckbox.addEventListener('change', function() {
+            passwordInput.type = this.checked ? 'text' : 'password';
+            confirmPasswordInput.type = this.checked ? 'text' : 'password';
+        });
+
+        function validatePassword(password) {
+            const requirements = {
+                length: password.length >= 8,
+                uppercase: /[A-Z]/.test(password),
+                number: /[0-9]/.test(password),
+                symbol: /[!@#$%^&*()_+=\-]/.test(password)
+            };
+            return requirements;
+        }
+
+        function updatePasswordRequirements(password) {
+            const requirements = validatePassword(password);
+            
+            // Update length requirement
+            const lengthReq = document.getElementById('req-length');
+            lengthReq.querySelector('.checkmark').textContent = requirements.length ? '✓' : '✗';
+            lengthReq.classList.toggle('valid', requirements.length);
+            
+            // Update uppercase requirement
+            const uppercaseReq = document.getElementById('req-uppercase');
+            uppercaseReq.querySelector('.checkmark').textContent = requirements.uppercase ? '✓' : '✗';
+            uppercaseReq.classList.toggle('valid', requirements.uppercase);
+            
+            // Update number requirement
+            const numberReq = document.getElementById('req-number');
+            numberReq.querySelector('.checkmark').textContent = requirements.number ? '✓' : '✗';
+            numberReq.classList.toggle('valid', requirements.number);
+            
+            // Update symbol requirement
+            const symbolReq = document.getElementById('req-symbol');
+            symbolReq.querySelector('.checkmark').textContent = requirements.symbol ? '✓' : '✗';
+            symbolReq.classList.toggle('valid', requirements.symbol);
+        }
+
+        function isPasswordValid(password) {
+            const requirements = validatePassword(password);
+            return requirements.length && requirements.uppercase && requirements.number && requirements.symbol;
+        }
+
+        passwordInput.addEventListener('input', function(e) {
+            updatePasswordRequirements(e.target.value);
+        });
+
+        // Form validation
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+            
+            if (!isPasswordValid(password)) {
+                e.preventDefault();
+                alert('Please ensure your password meets all requirements before submitting.');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match. Please try again.');
+                return;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Financial Analytics</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='treasurer.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Financial Analytics</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="#" class="signout-btn" onclick="confirmSignOut()">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="treasurer-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('treasurer') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('treasurer_reports') }}" class="nav-tab">Financial Reports</a></li>
+                <li><a href="{{ url_for('treasurer_analytics') }}" class="nav-tab active">Analytics</a></li>
+                <li><a href="{{ url_for('treasurer_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('treasurer_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('treasurer_audit_trail') }}" class="nav-tab">Fund Management</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <h2>Financial Analytics</h2>
+            <p>Comprehensive financial insights and trends analysis.</p>
+            
+            <div class="chart-container">
+                <h3>Monthly Revenue Trend</h3>
+                <canvas id="revenueTrendChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>Transaction Method Distribution</h3>
+                <canvas id="paymentMethodChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>Fundraiser Success by Category</h3>
+                <canvas id="categorySuccessChart"></canvas>
+            </div>
+
+            <div class="data-table-container">
+                <h3>Top Donors</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Donor Name</th>
+                                <th>Total Donated</th>
+                                <th>Donation Count</th>
+                                <th>Last Donation</th>
+                                <th>Average Donation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donor in top_donors %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>{{ donor.don_donorname }}</td>
+                                <td>₱{{ "{:,.2f}".format(donor.total_donated) }}</td>
+                                <td>{{ donor.donation_count }}</td>
+                                <td>{{ donor.last_donation.strftime('%Y-%m-%d') if donor.last_donation else 'N/A' }}</td>
+                                <td>₱{{ "{:,.2f}".format(donor.total_donated / donor.donation_count) if donor.donation_count > 0 else '0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="data-table-container">
+                <h3>Transaction Method Analytics</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Transaction Method</th>
+                                <th>Transaction Count</th>
+                                <th>Total Amount</th>
+                                <th>Average Amount</th>
+                                <th>Success Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for payment in payment_analytics %}
+                            <tr>
+                                <td>{{ payment.don_paymethod }}</td>
+                                <td>{{ payment.transaction_count }}</td>
+                                <td>₱{{ "{:,.2f}".format(payment.total_amount) }}</td>
+                                <td>₱{{ "{:,.2f}".format(payment.avg_amount) }}</td>
+                                <td>
+                                    <div class="success-rate">
+                                        <div class="rate-bar">
+                                            <div class="rate-fill" data-width="{{ payment.success_rate }}"></div>
+                                        </div>
+                                        <span class="rate-text">{{ "{:.1f}".format(payment.success_rate) }}%</span>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- <div class="data-table-container">
+                <h3>Category Performance Analysis</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Fundraiser Count</th>
+                                <th>Total Goal</th>
+                                <th>Total Raised</th>
+                                <th>Average Success Rate</th>
+                                <th>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in category_analytics %}
+                            <tr>
+                                <td>{{ category.fund_category }}</td>
+                                <td>{{ category.fundraiser_count }}</td>
+                                <td>₱{{ "{:,.2f}".format(category.total_goal) }}</td>
+                                <td>₱{{ "{:,.2f}".format(category.total_raised) }}</td>
+                                <td>{{ "{:.1f}".format(category.avg_success_rate) }}%</td>
+                                <td>
+                                    <div class="performance-indicator">
+                                        {% if category.avg_success_rate >= 80 %}
+                                            <span class="performance-badge excellent">Excellent</span>
+                                        {% elif category.avg_success_rate >= 60 %}
+                                            <span class="performance-badge good">Good</span>
+                                        {% elif category.avg_success_rate >= 40 %}
+                                            <span class="performance-badge average">Average</span>
+                                        {% else %}
+                                            <span class="performance-badge poor">Needs Improvement</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div> -->
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script type="application/json" id="analytics-data">
+        {
+            "revenue_analytics": {{ revenue_analytics | tojson }},
+            "payment_analytics": {{ payment_analytics | tojson }},
+            "category_analytics": {{ category_analytics | tojson }}
+        }
+    </script>
+
+    <script>
+        Chart.defaults.font.family = 'Satoshi, sans-serif';
+        Chart.defaults.color = '#6c757d';
+
+        const analyticsData = JSON.parse(document.getElementById('analytics-data').textContent);
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            const rateFills = document.querySelectorAll('.rate-fill');
+            rateFills.forEach(fill => {
+                const width = fill.getAttribute('data-width');
+                if (width) {
+                    fill.style.width = width + '%';
+                }
+            });
+        });
+        
+        const revenueAnalytics = analyticsData.revenue_analytics;
+        const revenueLabels = revenueAnalytics.map(item => {
+            const date = new Date(item.month + '-01');
+            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        });
+        const revenueData = revenueAnalytics.map(item => parseFloat(item.revenue));
+        const transactionData = revenueAnalytics.map(item => item.transaction_count);
+
+        const revenueTrendChart = new Chart(document.getElementById('revenueTrendChart'), {
+            type: 'line',
+            data: {
+                labels: revenueLabels,
+                datasets: [{
+                    label: 'Revenue (₱)',
+                    data: revenueData,
+                    borderColor: '#916DE8',
+                    backgroundColor: 'rgba(145, 109, 232, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Transaction Count',
+                    data: transactionData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Revenue (₱)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Transaction Count'
+                        },
+                        grid: {
+                            drawOnChartArea: false,
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                }
+            }
+        });
+
+        // Transaction Method Chart
+        const paymentAnalytics = analyticsData.payment_analytics;
+        const paymentLabels = paymentAnalytics.map(item => item.don_paymethod);
+        const paymentData = paymentAnalytics.map(item => parseFloat(item.total_amount));
+
+        const paymentMethodChart = new Chart(document.getElementById('paymentMethodChart'), {
+            type: 'doughnut',
+            data: {
+                labels: paymentLabels,
+                datasets: [{
+                    data: paymentData,
+                    backgroundColor: [
+                        '#AC8AFD',
+                        '#FFEC9E',
+                        '#FFADAD',
+                        '#A4FFAA',
+                        '#9BF6FF',
+                        '#A0C4FF'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true
+                        }
+                    }
+                }
+            }
+        });
+
+        // Category Success Chart
+        const categoryAnalytics = analyticsData.category_analytics;
+        const categoryLabels = categoryAnalytics.map(item => item.fund_category);
+        const categorySuccessData = categoryAnalytics.map(item => parseFloat(item.avg_success_rate));
+
+        const categorySuccessChart = new Chart(document.getElementById('categorySuccessChart'), {
+            type: 'bar',
+            data: {
+                labels: categoryLabels,
+                datasets: [{
+                    label: 'Success Rate (%)',
+                    data: categorySuccessData,
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#916DE8',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Success Rate (%)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    </script>
+
+    <style>
+        .analytics-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chart-card {
+            width: 100%;
+        }
+
+        .chart-card h3 {
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .top-donors-section,
+        .payment-analytics-section,
+        .category-performance-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .top-donors-section h3,
+        .payment-analytics-section h3,
+        .category-performance-section h3 {
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: middle;
+        }
+
+        .data-table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            letter-spacing: 0.5px;
+            text-transform: titlecase;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        @media (max-width: 900px) {
+            .data-table th,
+            .data-table td {
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+        }
+
+        .success-rate {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .rate-bar {
+            width: 100px;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .rate-fill {
+            height: 100%;
+            background-color: #28a745;
+            transition: width 0.3s ease;
+        }
+
+        .rate-text {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .performance-indicator {
+            display: flex;
+            align-items: center;
+        }
+
+        .performance-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .performance-badge.excellent {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .performance-badge.good {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .performance-badge.average {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .performance-badge.poor {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .nav-tab.cash-donations {
+            border-left: 2px solid #ddd !important;
+            padding-left: calc(2.4rem - 2px) !important;
+        }
+
+        .signout-btn {
+            color: #dc3545;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: text-decoration 0.3s ease;
+            margin-left: 1rem;
+        }
+
+        .signout-btn:hover {
+            text-decoration: underline;
+            color: #dc3545;
+        }
+    </style>
+
+    <script>
+        function confirmSignOut() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        }
+    </script>
+</body>
+</html>

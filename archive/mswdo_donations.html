@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | MSWDO - Donation Management</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='mswdo.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">MSWDO Control Center</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="{{ url_for('signout') }}" class="logout">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('mswdo_dashboard') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('mswdo_donations') }}" class="nav-tab active">Donations</a></li>
+                <li><a href="{{ url_for('mswdo_beneficiaries') }}" class="nav-tab">Beneficiaries</a></li>
+                <li><a href="{{ url_for('mswdo_reports') }}" class="nav-tab">Reports</a></li>
+
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="mswdo-section">
+        <div class="page-header">
+            <h1>Donation Management</h1>
+            <p>Oversee and coordinate all donations for relief efforts</p>
+        </div>
+
+        <!-- Donation Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Total Received</h3>
+                    <p class="stat-value">₱{{ "{:,}".format(total_received) }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Pending Processing</h3>
+                    <p class="stat-value">{{ pending_count }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Processed Today</h3>
+                    <p class="stat-value">{{ processed_today }}</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-content">
+                    <h3>Allocation Rate</h3>
+                    <p class="stat-value">{{ allocation_rate }}%</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters and Search -->
+        <div class="filters-section">
+            <div class="filter-group">
+                <label>Status Filter:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="statusFilterDropdown">
+                        <span class="dropdown-text">All Status</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="statusFilterContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-pending" data-status="Pending" checked>
+                            <label for="status-pending">Pending</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-processing" data-status="Processing" checked>
+                            <label for="status-processing">Processing</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-allocated" data-status="Allocated" checked>
+                            <label for="status-allocated">Allocated</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="status-distributed" data-status="Distributed" checked>
+                            <label for="status-distributed">Distributed</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label>Donation Type:</label>
+                <div class="custom-dropdown">
+                    <div class="dropdown-trigger" id="typeFilterDropdown">
+                        <span class="dropdown-text">All Types</span>
+                        <span class="dropdown-arrow">▼</span>
+                    </div>
+                    <div class="dropdown-content" id="typeFilterContent">
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-cash" data-type="Cash" checked>
+                            <label for="type-cash">Cash</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-goods" data-type="Goods" checked>
+                            <label for="type-goods">Goods</label>
+                        </div>
+                        <div class="dropdown-item">
+                            <input type="checkbox" id="type-services" data-type="Services" checked>
+                            <label for="type-services">Services</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-group">
+                <label for="searchDonations">Search:</label>
+                <input type="text" id="searchDonations" class="filter-input" placeholder="Search by donor, amount, or reference...">
+            </div>
+
+            <div class="filter-group">
+                <button id="clearFilters" class="clear-btn">Clear Filters</button>
+            </div>
+        </div>
+
+        <!-- Donations Table -->
+        <div class="table-container">
+            <table class="donations-table">
+                <thead>
+                    <tr>
+                        <th>Reference</th>
+                        <th>Donor</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                        <th>Fundraiser</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for donation in donations %}
+                    <tr class="donation-row" data-status="{{ donation.status }}" data-type="{{ donation.type }}">
+                        <td>
+                            <span class="reference-number">{{ donation.refnum }}</span>
+                        </td>
+                        <td>
+                            <div class="donor-info">
+                                <span class="donor-name">{{ donation.donor_name }}</span>
+                                <span class="donor-email">{{ donation.donor_email or 'N/A' }}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="amount">₱{{ "{:,}".format(donation.amount) }}</span>
+                        </td>
+                        <td>
+                            <span class="type-badge type-{{ donation.type.lower() }}">{{ donation.type }}</span>
+                        </td>
+                        <td>
+                            <span class="fundraiser-title">{{ donation.fundraiser_title }}</span>
+                        </td>
+                        <td>
+                            <span class="status-badge status-{{ donation.status.lower() }}">{{ donation.status }}</span>
+                        </td>
+                        <td>
+                            <span class="date">{{ donation.date.strftime('%b %d, %Y') }}</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="action-btn view-btn" data-donation-id="{{ donation.id }}" data-action="view" title="View Details">
+                                    View
+                                </button>
+                                <button class="action-btn process-btn" data-donation-id="{{ donation.id }}" data-action="process" title="Process">
+                                    Process
+                                </button>
+                                <button class="action-btn allocate-btn" data-donation-id="{{ donation.id }}" data-action="allocate" title="Allocate">
+                                    Allocate
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button class="page-btn" onclick="previousPage()">← Previous</button>
+            <span class="page-info">Page 1 of 5</span>
+            <button class="page-btn" onclick="nextPage()">Next →</button>
+        </div>
+    </section>
+
+    <!-- Donation Details Modal -->
+    <div id="donationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Donation Details</h3>
+                <span class="close" onclick="closeDonationModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="donation-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Reference Number:</span>
+                        <span class="detail-value" id="modal-refnum">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Donor Name:</span>
+                        <span class="detail-value" id="modal-donor">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Amount:</span>
+                        <span class="detail-value" id="modal-amount">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Payment Method:</span>
+                        <span class="detail-value" id="modal-payment">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status:</span>
+                        <span class="detail-value" id="modal-status">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Date:</span>
+                        <span class="detail-value" id="modal-date">-</span>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeDonationModal()">Close</button>
+                    <button class="btn-primary" onclick="processDonation()">Process Donation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Process Donation Modal -->
+    <div id="processModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Process Donation</h3>
+                <span class="close" onclick="closeProcessModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="processForm">
+                    <div class="form-group">
+                        <label for="processStatus">Update Status</label>
+                        <select id="processStatus" required>
+                            <option value="Processing">Processing</option>
+                            <option value="Allocated">Allocated</option>
+                            <option value="Distributed">Distributed</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="allocationArea">Allocation Area</label>
+                        <select id="allocationArea">
+                            <option value="">Select area</option>
+                            <option value="barangay1">Barangay San Jose</option>
+                            <option value="barangay2">Barangay Poblacion</option>
+                            <option value="barangay3">Barangay Santa Maria</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="reliefType">Relief Type</label>
+                        <select id="reliefType">
+                            <option value="">Select relief type</option>
+                            <option value="food">Food Packs</option>
+                            <option value="medical">Medical Supplies</option>
+                            <option value="housing">Housing Materials</option>
+                            <option value="cash">Cash Assistance</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="notes">Processing Notes</label>
+                        <textarea id="notes" placeholder="Add any notes about the processing..." rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeProcessModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Update Status</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH - MSWDO Control Center. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Filter functionality
+        const statusFilterDropdown = document.getElementById('statusFilterDropdown');
+        const statusFilterContent = document.getElementById('statusFilterContent');
+        const typeFilterDropdown = document.getElementById('typeFilterDropdown');
+        const typeFilterContent = document.getElementById('typeFilterContent');
+        const searchInput = document.getElementById('searchDonations');
+        const clearFiltersBtn = document.getElementById('clearFilters');
+
+        // Status filter
+        statusFilterDropdown.addEventListener('click', function() {
+            statusFilterContent.classList.toggle('show');
+        });
+
+        // Type filter
+        typeFilterDropdown.addEventListener('click', function() {
+            typeFilterContent.classList.toggle('show');
+        });
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!statusFilterDropdown.contains(e.target)) {
+                statusFilterContent.classList.remove('show');
+            }
+            if (!typeFilterDropdown.contains(e.target)) {
+                typeFilterContent.classList.remove('show');
+            }
+        });
+
+        // Filter table rows
+        function filterTable() {
+            const statusCheckboxes = document.querySelectorAll('#statusFilterContent input[type="checkbox"]:checked');
+            const typeCheckboxes = document.querySelectorAll('#typeFilterContent input[type="checkbox"]:checked');
+            const searchValue = searchInput.value.toLowerCase();
+            
+            const selectedStatuses = Array.from(statusCheckboxes).map(cb => cb.dataset.status);
+            const selectedTypes = Array.from(typeCheckboxes).map(cb => cb.dataset.type);
+            
+            const rows = document.querySelectorAll('.donation-row');
+            rows.forEach(row => {
+                const status = row.dataset.status;
+                const type = row.dataset.type;
+                const donorName = row.querySelector('.donor-name').textContent.toLowerCase();
+                const amount = row.querySelector('.amount').textContent.toLowerCase();
+                const refnum = row.querySelector('.reference-number').textContent.toLowerCase();
+                
+                const statusMatch = selectedStatuses.length === 0 || selectedStatuses.includes(status);
+                const typeMatch = selectedTypes.length === 0 || selectedTypes.includes(type);
+                const searchMatch = donorName.includes(searchValue) || 
+                                 amount.includes(searchValue) || 
+                                 refnum.includes(searchValue);
+                
+                if (statusMatch && typeMatch && searchMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        // Event listeners
+        document.querySelectorAll('#statusFilterContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterTable);
+        });
+
+        document.querySelectorAll('#typeFilterContent input[type="checkbox"]').forEach(checkbox => {
+            checkbox.addEventListener('change', filterTable);
+        });
+
+        searchInput.addEventListener('input', filterTable);
+
+        clearFiltersBtn.addEventListener('click', function() {
+            document.querySelectorAll('#statusFilterContent input[type="checkbox"]').forEach(cb => cb.checked = true);
+            document.querySelectorAll('#typeFilterContent input[type="checkbox"]').forEach(cb => cb.checked = true);
+            searchInput.value = '';
+            filterTable();
+        });
+
+        // Modal functions
+        function viewDonation(donationId) {
+            // In a real implementation, fetch donation details via API
+            document.getElementById('donationModal').style.display = 'block';
+        }
+
+        function processDonation(donationId) {
+            document.getElementById('processModal').style.display = 'block';
+        }
+
+        function allocateDonation(donationId) {
+            alert('Allocation feature coming soon!');
+        }
+
+        function closeDonationModal() {
+            document.getElementById('donationModal').style.display = 'none';
+        }
+
+        function closeProcessModal() {
+            document.getElementById('processModal').style.display = 'none';
+        }
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            const donationModal = document.getElementById('donationModal');
+            const processModal = document.getElementById('processModal');
+            if (event.target === donationModal) {
+                donationModal.style.display = 'none';
+            }
+            if (event.target === processModal) {
+                processModal.style.display = 'none';
+            }
+        }
+
+        // Process form submission
+        document.getElementById('processForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Donation status updated successfully!');
+            closeProcessModal();
+        });
+
+        // Action button event listeners
+        document.addEventListener('click', function(e) {
+            if (e.target.matches('.action-btn[data-action]')) {
+                const donationId = e.target.getAttribute('data-donation-id');
+                const action = e.target.getAttribute('data-action');
+                
+                switch(action) {
+                    case 'view':
+                        viewDonation(donationId);
+                        break;
+                    case 'process':
+                        processDonation(donationId);
+                        break;
+                    case 'allocate':
+                        allocateDonation(donationId);
+                        break;
+                }
+            }
+        });
+
+        // Pagination functions
+        function previousPage() {
+            alert('Previous page functionality coming soon!');
+        }
+
+        function nextPage() {
+            alert('Next page functionality coming soon!');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Fundraiser | ReliePH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='manage_fundraiser.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('profile_funds') }}">< Back to My Fundraisers</a>
+        </div>
+        
+        <div class="nav-center">
+            <a href="{{ url_for('index') }}" class="home">
+                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+            </a>
+        </div>
+        
+        <div class="nav-right">
+            <a href="{{ url_for('view_fundraiser', fundraiser_id=fundraiser.fund_id) }}" class="view-link" style="color: white; background-color: white;">View Fundraiser</a>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="content-grid">
+            <div class="overview-card">
+                <h2>Fundraiser Overview</h2>
+                <div class="overview-content">
+                    <div class="fundraiser-image">
+                        <div class="image-gallery">
+                            <div class="main-image">
+                                <img id="mainImage" src="{% if fundraiser.fund_img %}data:image/png;base64,{{ fundraiser.fund_img|b64encode }}{% else %}{{ url_for('static', filename='images/placeholder_img.png') }}{% endif %}" alt="Fundraiser Image">
+                                <div class="image-overlay">
+                                    <button class="change-image-btn" id="changeImageBtn">Change Main Image</button>
+                                </div>
+                            </div>
+                            
+                            <div class="additional-images">
+                                <h4>Additional Images</h4>
+                                <div class="images-grid" id="imagesGrid">
+                                    {% for image in additional_images %}
+                                    <div class="image-item" data-image-id="{{ image.image_id }}">
+                                        <img src="{{ url_for('get_fundraiser_image', fundraiser_id=fundraiser.fund_id, image_id=image.image_id) }}" alt="Additional Image">
+                                        <div class="image-actions">
+                                            {% if image.is_primary %}
+                                                <span class="primary-badge">Primary</span>
+                                            {% else %}
+                                                <button class="set-primary-btn" data-image-id="{{ image.image_id }}">Set Primary</button>
+                                            {% endif %}
+                                            <button class="delete-image-btn" data-image-id="{{ image.image_id }}">Delete</button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                
+                                <div class="upload-section">
+                                    <input type="file" id="multipleImageInput" accept=".jpg,.jpeg,.png" multiple style="display: none;">
+                                    <button class="add-images-btn" id="addImagesBtn">Add More Images</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fundraiser-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Status</span>
+                            <span class="stat-value status-{{ fundraiser.fund_status.lower() }}">{{ fundraiser.fund_status }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Goal Amount</span>
+                            <span class="stat-value">₱{{ '{:,}'.format(fundraiser.fund_goalamount|int) }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Raised</span>
+                            <span class="stat-value">₱{{ '{:,}'.format(total_raised|int) }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Created</span>
+                            <span class="stat-value">{{ fundraiser.fund_startdate.strftime('%B %d, %Y') }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="donation-stats">
+                    <div class="donation-stat">
+                        <span class="stat-number">{{ donations|length }}</span>
+                        <span class="stat-label">Total Donations</span>
+                    </div>
+                    <div class="donation-stat">
+                        <span class="stat-number">₱{{ '{:,}'.format(total_raised|int) }}</span>
+                        <span class="stat-label">Total Raised</span>
+                    </div>
+                    <div class="donation-stat">
+                        <span class="stat-number">{{ '{:.1f}'.format((total_raised / fundraiser.fund_goalamount * 100) if fundraiser.fund_goalamount > 0 else 0) }}%</span>
+                        <span class="stat-label">Goal Progress</span>
+                    </div>
+                </div>
+                
+                {% if donations %}
+                <div class="recent-donations">
+                    <h3>Recent Donations</h3>
+                    <div class="donations-list">
+                        {% for donation in donations[:5] %}
+                        <div class="donation-item">
+                            <div class="donor-info">
+                                <span class="donor-name">{{ donation.don_donorname }}</span>
+                                <span class="donation-date">{{ donation.don_date.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            <div class="donation-amount">₱{{ '{:,}'.format(donation.don_amount|int) }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="edit-form-card">
+                <h2>Edit Fundraiser Details</h2>
+                <form id="editFundraiserForm" enctype="multipart/form-data">
+                    <input type="hidden" id="fundraiser_id" value="{{ fundraiser.fund_id }}">
+                    
+                    <div class="form-group">
+                        <label for="fund_title">Fundraiser Title</label>
+                        <input type="text" id="fund_title" name="fund_title" value="{{ fundraiser.fund_title }}" required>
+                    </div>
+
+                    <!-- <div class="form-group">
+                        <label for="fund_beneficiary">Beneficiary Name</label>
+                        <input type="text" id="fund_beneficiary" name="fund_beneficiary" value="{{ fundraiser.fund_beneficiary or '' }}" placeholder="Enter beneficiary name">
+                    </div> -->
+
+                    <div class="form-group">
+                        <label for="fund_goalamount">Goal Amount (₱)</label>
+                        <input type="number" id="fund_goalamount" name="fund_goalamount" value="{{ fundraiser.fund_goalamount }}" min="1" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fund_desc">Story</label>
+                        <textarea id="fund_desc" name="fund_desc" rows="6" required>{{ fundraiser.fund_desc }}</textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fund_status">Status</label>
+                        <select id="fund_status" name="fund_status" required>
+                            <option value="Active" {% if fundraiser.fund_status == 'Active' %}selected{% endif %}>Active</option>
+                            <option value="Paused" {% if fundraiser.fund_status == 'Paused' %}selected{% endif %}>Paused</option>
+                            <option value="Completed" {% if fundraiser.fund_status == 'Completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="save-btn">Save Changes</button>
+                        <button type="button" class="cancel-btn" onclick="history.back()">Cancel</button>
+                    </div>
+                </form>
+
+                <hr style="color: #ccc; margin-top: 20px; margin-bottom: 15px;">
+
+                <div class="card-header">
+                    <h2>Beneficiaries</h2>
+                    <button class="add-beneficiary-btn" id="addBeneficiaryBtn">+ Add Beneficiary</button>
+                </div>
+                <div class="beneficiaries-content">
+                    {% if beneficiaries %}
+                    <div class="beneficiaries-list">
+                        {% for beneficiary in beneficiaries %}
+                        <div class="beneficiary-item" data-beneficiary-id="{{ beneficiary.beneficiary_id }}">
+                            <div class="beneficiary-info">
+                                <div class="beneficiary-header">
+                                    <h3>{{ beneficiary.beneficiary_name }}</h3>
+                                </div>
+                                <div class="beneficiary-details">
+                                    {% if beneficiary.beneficiary_age %}<p><strong>Age:</strong> {{ beneficiary.beneficiary_age }}</p>{% endif %}
+                                    {% if beneficiary.beneficiary_gender %}<p><strong>Gender:</strong> {{ beneficiary.beneficiary_gender }}</p>{% endif %}
+                                    {% if beneficiary.beneficiary_contact %}<p><strong>Contact:</strong> {{ beneficiary.beneficiary_contact }}</p>{% endif %}
+                                    {% if beneficiary.beneficiary_address %}<p><strong>Barangay:</strong> {{ beneficiary.beneficiary_address }}</p>{% endif %}
+                                </div>
+                            </div>
+                            <div class="beneficiary-actions">
+                                <button class="edit-beneficiary-btn" data-beneficiary-id="{{ beneficiary.beneficiary_id }}">Edit</button>
+                                <button class="delete-beneficiary-btn" data-beneficiary-id="{{ beneficiary.beneficiary_id }}">Delete</button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="no-beneficiaries">
+                        <p>No beneficiaries added yet. Click "Add Beneficiary" to get started.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+            <!-- <div class="beneficiaries-card">
+                
+            </div> -->
+
+        <div class="donations-card">
+            <h2>Donations Summary</h2>
+            <div class="donations-content">
+                <div class="donation-stats">
+                    <div class="donation-stat">
+                        <span class="stat-number">{{ donations|length }}</span>
+                        <span class="stat-label">Total Donations</span>
+                    </div>
+                    <div class="donation-stat">
+                        <span class="stat-number">₱{{ '{:,}'.format(total_raised|int) }}</span>
+                        <span class="stat-label">Total Raised</span>
+                    </div>
+                    <div class="donation-stat">
+                        <span class="stat-number">{{ '{:.1f}'.format((total_raised / fundraiser.fund_goalamount * 100) if fundraiser.fund_goalamount > 0 else 0) }}%</span>
+                        <span class="stat-label">Goal Progress</span>
+                    </div>
+                </div>
+                
+                {% if donations %}
+                <div class="recent-donations">
+                    <h3>Recent Donations</h3>
+                    <div class="donations-list">
+                        {% for donation in donations[:5] %}
+                        <div class="donation-item">
+                            <div class="donor-info">
+                                <span class="donor-name">{{ donation.don_donorname }}</span>
+                                <span class="donation-date">{{ donation.don_date.strftime('%b %d, %Y') }}</span>
+                            </div>
+                            <div class="donation-amount">₱{{ '{:,}'.format(donation.don_amount|int) }}</div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div id="beneficiaryModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2 id="modalTitle">Add Beneficiary</h2>
+            <form id="beneficiaryForm">
+                <input type="hidden" id="beneficiaryId" name="beneficiary_id">
+                <input type="hidden" id="fundraiserId" name="fund_id" value="{{ fundraiser.fund_id }}">
+                
+                <div class="form-group">
+                    <label for="beneficiary_name">Name *</label>
+                    <input type="text" id="beneficiary_name" name="beneficiary_name" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="beneficiary_age">Age</label>
+                        <input type="number" id="beneficiary_age" name="beneficiary_age" min="0" max="150">
+                    </div>
+                    <div class="form-group">
+                        <label for="beneficiary_gender">Gender</label>
+                        <select id="beneficiary_gender" name="beneficiary_gender">
+                            <option value="">Select...</option>
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="beneficiary_contact">Contact</label>
+                    <input type="text" id="beneficiary_contact" name="beneficiary_contact" placeholder="Phone number or email">
+                </div>
+
+                <div class="form-group">
+                    <label for="beneficiary_address">Barangay *</label>
+                    <select id="beneficiary_address" name="beneficiary_address" required>
+                        <option value="">Select Barangay</option>
+                    </select>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="save-btn">Save</button>
+                    <button type="button" class="cancel-btn" id="cancelBeneficiaryBtn">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <input type="file" id="imageInput" accept=".jpg,.jpeg,.png" style="display: none;">
+
+    <script>
+        document.getElementById('editFundraiserForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('fund_id', document.getElementById('fundraiser_id').value);
+            formData.append('fund_title', document.getElementById('fund_title').value);
+            formData.append('fund_beneficiary', document.getElementById('fund_beneficiary').value);
+            formData.append('fund_goalamount', document.getElementById('fund_goalamount').value);
+            formData.append('fund_desc', document.getElementById('fund_desc').value);
+            formData.append('fund_status', document.getElementById('fund_status').value);
+            
+            const imageInput = document.getElementById('imageInput');
+            if (imageInput.files[0]) {
+                formData.append('fund_img', imageInput.files[0]);
+            }
+
+            try {
+                const response = await fetch('/update-fundraiser', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Fundraiser updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Error updating fundraiser: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error updating fundraiser. Please try again.');
+            }
+        });
+
+        document.getElementById('changeImageBtn').addEventListener('click', function() {
+            document.getElementById('imageInput').click();
+        });
+
+        const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png'];
+        document.getElementById('imageInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (!ALLOWED_TYPES.includes(file.type)) {
+                    alert('Please upload a JPG or PNG image only.');
+                    this.value = '';
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.querySelector('.fundraiser-image img').src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        document.getElementById('addImagesBtn').addEventListener('click', function() {
+            document.getElementById('multipleImageInput').click();
+        });
+
+        document.getElementById('multipleImageInput').addEventListener('change', async function(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            const formData = new FormData();
+            files.forEach(file => {
+                formData.append('images', file);
+            });
+
+            try {
+                const response = await fetch(`/api/fundraiser/{{ fundraiser.fund_id }}/images`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`Successfully uploaded ${data.uploaded_count} image(s)!`);
+                    location.reload();
+                } else {
+                    alert('Error uploading images: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error uploading images. Please try again.');
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('set-primary-btn')) {
+                const imageId = e.target.getAttribute('data-image-id');
+                setPrimaryImage(imageId);
+            } else if (e.target.classList.contains('delete-image-btn')) {
+                const imageId = e.target.getAttribute('data-image-id');
+                deleteImage(imageId);
+            }
+        });
+
+        async function setPrimaryImage(imageId) {
+            try {
+                const response = await fetch(`/api/fundraiser/{{ fundraiser.fund_id }}/images/${imageId}/set-primary`, {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Primary image updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Error setting primary image: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error setting primary image. Please try again.');
+            }
+        }
+
+        async function deleteImage(imageId) {
+            if (!confirm('Are you sure you want to delete this image?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/fundraiser/{{ fundraiser.fund_id }}/images/${imageId}`, {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Image deleted successfully!');
+                    location.reload();
+                } else {
+                    alert('Error deleting image: ' + data.error);
+                }
+            } catch (error) {
+                alert('Error deleting image. Please try again.');
+            }
+        }
+
+        // Beneficiary Management
+        const modal = document.getElementById('beneficiaryModal');
+        const addBtn = document.getElementById('addBeneficiaryBtn');
+        const cancelBtn = document.getElementById('cancelBeneficiaryBtn');
+        const closeBtn = document.querySelector('.close');
+        const form = document.getElementById('beneficiaryForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const addressSelect = document.getElementById('beneficiary_address');
+
+        // Load barangays on page load
+        async function loadBarangays() {
+            try {
+                const response = await fetch('/api/barangays');
+                const data = await response.json();
+                if (data.success && data.barangays) {
+                    addressSelect.innerHTML = '<option value="">Select Barangay</option>';
+                    data.barangays.forEach(barangay => {
+                        const option = document.createElement('option');
+                        option.value = barangay;
+                        option.textContent = barangay;
+                        addressSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading barangays:', error);
+            }
+        }
+
+        // Load barangays when page loads
+        loadBarangays();
+
+        function openModal(isEdit = false, beneficiaryId = null) {
+            modal.style.display = 'block';
+            if (isEdit && beneficiaryId) {
+                modalTitle.textContent = 'Edit Beneficiary';
+                // Fetch beneficiary data and populate form
+                fetch(`/api/beneficiaries/{{ fundraiser.fund_id }}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            const beneficiary = data.beneficiaries.find(b => b.beneficiary_id == beneficiaryId);
+                            if (beneficiary) {
+                                document.getElementById('beneficiaryId').value = beneficiary.beneficiary_id;
+                                document.getElementById('beneficiary_name').value = beneficiary.beneficiary_name || '';
+                                document.getElementById('beneficiary_age').value = beneficiary.beneficiary_age || '';
+                                document.getElementById('beneficiary_gender').value = beneficiary.beneficiary_gender || '';
+                                document.getElementById('beneficiary_contact').value = beneficiary.beneficiary_contact || '';
+                                addressSelect.value = beneficiary.beneficiary_address || '';
+                            }
+                        }
+                    });
+            } else {
+                modalTitle.textContent = 'Add Beneficiary';
+                form.reset();
+                document.getElementById('beneficiaryId').value = '';
+                document.getElementById('fundraiserId').value = '{{ fundraiser.fund_id }}';
+                addressSelect.value = '';
+            }
+        }
+
+        function closeModal() {
+            modal.style.display = 'none';
+            form.reset();
+        }
+
+        addBtn.addEventListener('click', () => openModal(false));
+        cancelBtn.addEventListener('click', closeModal);
+        closeBtn.addEventListener('click', closeModal);
+
+        window.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Convert empty strings to null for optional fields
+            Object.keys(data).forEach(key => {
+                if (data[key] === '' && key !== 'beneficiary_name' && key !== 'beneficiary_address') data[key] = null;
+            });
+
+            // Convert numeric fields
+            if (data.beneficiary_age) data.beneficiary_age = parseInt(data.beneficiary_age);
+
+            try {
+                const beneficiaryId = document.getElementById('beneficiaryId').value;
+                const url = beneficiaryId ? `/api/beneficiaries/${beneficiaryId}` : '/api/beneficiaries';
+                const method = beneficiaryId ? 'PUT' : 'POST';
+
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message || 'Beneficiary saved successfully!');
+                    closeModal();
+                    location.reload();
+                } else {
+                    alert('Error: ' + (result.error || 'Failed to save beneficiary'));
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+            }
+        });
+
+        // Edit beneficiary
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('edit-beneficiary-btn')) {
+                const beneficiaryId = e.target.getAttribute('data-beneficiary-id');
+                openModal(true, beneficiaryId);
+            }
+        });
+
+        // Delete beneficiary
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-beneficiary-btn')) {
+                if (!confirm('Are you sure you want to delete this beneficiary?')) {
+                    return;
+                }
+
+                const beneficiaryId = e.target.getAttribute('data-beneficiary-id');
+                
+                fetch(`/api/beneficiaries/${beneficiaryId}`, {
+                    method: 'DELETE'
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Beneficiary deleted successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to delete beneficiary'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

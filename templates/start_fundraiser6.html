@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fundraiser Success</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser6.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+  <div class="container">
+    <div class="left-panel">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+      </a>
+      <h1 class="success-title">Success!</h1>
+      <p class="success-subtext">You have now completed and published a fundraiser.</p>
+    </div>
+
+    <div class="right-panel">
+      <div class="top-bar">
+        {% if not session.get('email') %}
+          <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+          <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="middle">
+        <div class="progress-indicator small">
+          <div class="progress-step small completed"><span>1</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>2</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>3</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small completed"><span>4</span></div>
+        </div>
+        <div class="content">
+          <h2 class="share-title">Share your fundraiser</h2>
+
+          <div class="social-icons">
+              <div class="icon-item">
+                  <a href="#" onclick="shareOnFacebook(event)" target="_blank">
+                    <img src="{{ url_for('static', filename='images/facebook.png') }}" alt="Facebook">
+                  </a>
+              </div>
+              <div class="icon-item">
+                  <a href="#" onclick="shareOnMessenger(event)" target="_blank">
+                    <img src="{{ url_for('static', filename='images/messenger.png') }}" alt="Messenger">
+                  </a>
+              </div>
+              <div class="icon-item">
+                  <a href="#" onclick="shareOnTwitter(event)" target="_blank">
+                    <img src="{{ url_for('static', filename='images/x.png') }}" alt="X">
+                  </a>
+              </div>
+              <div class="icon-item">
+                  <a href="#" onclick="shareViaEmail(event)">
+                    <img src="{{ url_for('static', filename='images/email.png') }}" alt="Email">
+                  </a>
+              </div>
+          </div>
+
+          <div class="share-link">
+              <input type="text" id="fundraiser-link" value="https://relie.ph/463653" readonly>
+              <button class="copy-btn" onclick="copyLink()">Copy Link</button>
+          </div>
+
+          <div id="copy-popup">Link copied!</div>
+
+          <a href="{{ url_for('view_fundraiser', fundraiser_id=fund_id) }}" class="continue-btn">Continue</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+        const fundraiserLink = "{{ url_for('view_fundraiser', fundraiser_id=fund_id, _external=True) }}";
+        const fundraiserTitle = "Check out this fundraiser on ReliePH!";
+        const fundraiserDescription = "Help make a difference by supporting this cause. Every donation counts!";
+
+        function copyLink() {
+            const linkInput = document.getElementById("fundraiser-link");
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(linkInput.value);
+
+            const popup = document.getElementById("copy-popup");
+            popup.classList.add("show");
+
+            setTimeout(() => {
+                popup.classList.remove("show");
+            }, 2000);
+        }
+
+        function shareOnFacebook(event) {
+            event.preventDefault();
+            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(fundraiserLink)}&quote=${encodeURIComponent(fundraiserTitle)}`;
+            window.open(url, 'facebook-share', 'width=600,height=400,scrollbars=yes,resizable=yes');
+        }
+
+        function shareOnMessenger(event) {
+            event.preventDefault();
+            const url = `https://www.facebook.com/dialog/send?app_id=YOUR_APP_ID&link=${encodeURIComponent(fundraiserLink)}&redirect_uri=${encodeURIComponent(fundraiserLink)}`;
+            window.open(url, 'messenger-share', 'width=600,height=400,scrollbars=yes,resizable=yes');
+        }
+
+        function shareOnTwitter(event) {
+            event.preventDefault();
+            const text = `${fundraiserTitle} ${fundraiserLink}`;
+            const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
+            window.open(url, 'twitter-share', 'width=600,height=400,scrollbars=yes,resizable=yes');
+        }
+
+        function shareViaEmail(event) {
+            event.preventDefault();
+            const subject = encodeURIComponent(fundraiserTitle);
+            const body = encodeURIComponent(`${fundraiserDescription}\n\n${fundraiserLink}`);
+            const url = `mailto:?subject=${subject}&body=${body}`;
+            window.location.href = url;
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const linkInput = document.getElementById("fundraiser-link");
+            linkInput.value = fundraiserLink;
+        });
+    </script>
+
+
+  </div>
+</body>
+</html>

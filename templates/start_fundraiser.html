@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start a Fundraiser - ReliePH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="ReliePH Logo" class="side-logo">
+            </a>
+            <h1>Start your fundraising journey today</h1>
+            <p>We’ll walk with you every step of your path.</p>
+        </div>
+
+        <div class="right-panel">
+            <div class="top-bar">
+                {% if not session.get('email') %}
+                    <a href="{{ url_for('goto_signin') }}" class="signin-link">Sign In</a>
+                {% else %}
+                    <a href="{{ url_for('profile_funds') }}" class="profile-link">
+                        {% set parts = session.get('username').split(' ') %}
+                        {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+                        <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="middle">
+                <div class="progress-indicator small">
+                    <div class="progress-step small active"><span>1</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>2</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>3</span></div>
+                    <div class="progress-line small"></div>
+                    <div class="progress-step small"><span>4</span></div>
+                </div>
+                <div class="content">
+                    <h2>What best describes why you’re fundraising?</h2>
+                    
+                    <form method="POST" action="{{ url_for('start_fundraiser') }}" id="fundraiserTypeForm">
+                        <div class="options">
+                            <label class="option" title="Animal Rescue & Welfare">
+                                <input type="radio" name="fundraiser_type" value="animal_rescue">
+                                <div class="option-text">
+                                    <span class="title">Animal Rescue &amp; Welfare</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Community initiatives and local projects">
+                                <input type="radio" name="fundraiser_type" value="community">
+                                <div class="option-text">
+                                    <span class="title">Community</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="General disaster relief efforts">
+                                <input type="radio" name="fundraiser_type" value="disaster_relief">
+                                <div class="option-text">
+                                    <span class="title">Disaster Relief</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Family support and urgent family needs">
+                                <input type="radio" name="fundraiser_type" value="family">
+                                <div class="option-text">
+                                    <span class="title">Family</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Education-related fundraising (tuition, supplies, scholarships)">
+                                <input type="radio" name="fundraiser_type" value="education">
+                                <div class="option-text">
+                                    <span class="title">Education</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Support for livelihoods, small businesses, and income generation">
+                                <input type="radio" name="fundraiser_type" value="livelihood_support">
+                                <div class="option-text">
+                                    <span class="title">Livelihood Support</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Medical expenses, treatments, and healthcare support">
+                                <input type="radio" name="fundraiser_type" value="medical">
+                                <div class="option-text">
+                                    <span class="title">Medical</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Volunteer coordination and non-monetary assistance efforts">
+                                <input type="radio" name="fundraiser_type" value="volunteer">
+                                <div class="option-text">
+                                    <span class="title">Volunteer</span>
+                                </div>
+                            </label>
+
+                            <label class="option" title="Other (please specify in your fundraiser description)">
+                                <input type="radio" name="fundraiser_type" value="other">
+                                <div class="option-text">
+                                    <span class="title">Other</span>
+                                </div>
+                            </label>
+                        </div>
+
+                    </form>
+                    
+                    <div class="bottom-bar">
+                        <button type="submit" class="continue-btn">Continue</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('fundraiserTypeForm').addEventListener('submit', function(e) {
+            const checked = document.querySelector('input[name="fundraiser_type"]:checked');
+            if (!checked) {
+                e.preventDefault();
+                alert('Please select a disaster type before continuing.');
+            }
+        });
+
+        document.querySelectorAll('.option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.option').forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        document.querySelector('.continue-btn').addEventListener('click', function(e) {
+            e.preventDefault();
+            const checked = document.querySelector('input[name="fundraiser_type"]:checked');
+            if (checked) {
+                document.getElementById('fundraiserTypeForm').submit();
+            } else {
+                alert('Please select a disaster type before continuing.');
+            }
+        });
+    </script>
+</body>
+</html>

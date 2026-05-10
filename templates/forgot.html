@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | OTP Verification</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='forgot.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+    <div class="container">
+        <a href="{{ url_for('index') }}" class="home">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+        </a>
+        <h2 class="subtitle">OTP Verification</h2>
+        <p class="description">Enter OTP to verify & continue.</p>
+        
+        <form action="{{ url_for('verify_otp') }}" method="post">
+            <input type="email" id="email" name="email" placeholder="Email" required>
+
+            <div class="otp-container">
+                <button type="button" class="send-otp-button" id="send-otp-btn">Send OTP</button>
+                <input type="text" id="otp" name="otp" minlength="6" maxlength="6" pattern="[0-9]*" placeholder="Enter OTP" required>
+            </div>
+
+            <p class="error-message">
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+
+            <button type="submit">Verify</button>       
+        </form>
+    </div>
+
+    <script>
+        document.getElementById("send-otp-btn").addEventListener("click", function() {
+            const email = document.getElementById("email").value;
+        
+            fetch('/forgot-password/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email: email })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else if (data.error) {
+                    alert("Error: " + data.error);
+                }
+            })
+            .catch(error => {
+                console.error("Error:", error);
+                alert("An error occurred. Please try again.");
+            });
+        });
+    </script>
+</body>
+</html>

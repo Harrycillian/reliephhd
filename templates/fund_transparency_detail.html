@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | {{ fundraiser.fund_title }} Transparency</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='fund_transparency.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}" class="nav-link">Home</a>
+            <a href="{{ url_for('fundraisers') }}" class="nav-link">Fundraisers</a>
+        </div>
+        <div class="nav-center">
+            <a href="{{ url_for('index') }}">
+                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo">
+            </a>
+        </div>
+        <div class="nav-right">
+            <a href="{{ url_for('track_donation') }}" class="nav-link">Track Donation</a>
+            {% if session.get('email') %}
+            <a href="{{ url_for('profile_funds') }}" class="nav-link">My Profile</a>
+            {% else %}
+            <a href="{{ url_for('goto_signin') }}" class="nav-link">Sign In</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <main class="transparency-page detail-page">
+        <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+        <section class="detail-hero">
+            <div class="detail-hero-media">
+                <img
+                    src="{% if fundraiser.fund_img %}data:image/jpeg;base64,{{ fundraiser.fund_img | b64encode }}{% else %}{{ url_for('static', filename='images/placeholder_img.png') }}{% endif %}"
+                    alt="{{ fundraiser.fund_title }}"
+                >
+            </div>
+            <div class="detail-hero-copy">
+                <div class="hero-badges">
+                    <span class="category-pill">{{ fundraiser.fund_category or 'Community Support' }}</span>
+                    <span class="status-badge {{ (fundraiser.fund_status or 'active')|lower }}">{{ fundraiser.fund_status }}</span>
+                </div>
+                <h1>{{ fundraiser.fund_title }}</h1>
+                <p class="detail-description">{{ fundraiser.fund_desc or 'No fundraiser description is available yet.' }}</p>
+
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span>Created by</span>
+                        <strong>{{ fundraiser.creator_name or 'Anonymous' }}</strong>
+                    </div>
+                    <div class="meta-item">
+                        <span>Started on</span>
+                        <strong>{{ fundraiser.fund_startdate.strftime('%B %d, %Y') if fundraiser.fund_startdate else 'N/A' }}</strong>
+                    </div>
+                </div>
+
+                <div class="card-actions hero-actions">
+                    {% if fundraiser.fund_status == 'Completed' %}
+                    <span class="btn primary disabled">Goal Reached</span>
+                    {% else %}
+                    <a href="{{ url_for('donate', fundraiser_id=fundraiser.fund_id) }}" class="btn primary">Donate Now</a>
+                    {% endif %}
+                    {% if fundraiser_completion_is_public and completion_proofs %}
+                    <a href="{{ completion_proofs[0].public_url }}" class="btn secondary" target="_blank" rel="noopener">View Completion Proof</a>
+                    {% endif %}
+                    <a href="{{ url_for('view_fundraiser', fundraiser_id=fundraiser.fund_id) }}" class="btn secondary">View Fundraiser</a>
+                    <a href="{{ url_for('blockchain_records') }}" class="btn secondary">Blockchain Records</a>
+                </div>
+            </div>
+        </section>
+
+        <section class="notice-strip">
+            <p>
+                This page shows the public transparency data currently stored in ReliePH for this fundraiser:
+                campaign totals, beneficiary record counts, public beneficiary names, and blockchain-backed donation entries.
+                Treasurer-uploaded completion proof is shown here when the fundraiser is completed.
+            </p>
+        </section>
+
+        {% if fundraiser_completion_is_public and completion_proofs %}
+        {% set featured_proof = completion_proofs[0] %}
+        <section class="panel-card featured-proof-panel">
+            <div class="section-head">
+                <h2>Fundraiser Completion Proof</h2>
+                <span>Completed campaign record</span>
+            </div>
+            <div class="featured-proof-grid">
+                <a href="{{ featured_proof.public_url }}" target="_blank" rel="noopener" class="featured-proof-media">
+                    <img src="{{ featured_proof.public_url }}" alt="Completion proof for {{ fundraiser.fund_title }}">
+                </a>
+                <div class="featured-proof-copy">
+                    <span class="status-badge completed">Completed</span>
+                    <h3>{{ featured_proof.original_filename or 'Completion proof' }}</h3>
+                    <p>
+                        This fundraiser is marked as completed, and all paid donations shown in this transparency record are treated as
+                        <strong>Completed / Used</strong>.
+                    </p>
+                    <small>{{ featured_proof.uploaded_at.strftime('%B %d, %Y %I:%M %p') if featured_proof.uploaded_at else 'Date unavailable' }}</small>
+                    {% if featured_proof.proof_note %}
+                    <p class="featured-proof-note">{{ featured_proof.proof_note }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        {% set display_raised = [public_summary.total_raised, public_summary.goal_amount] | min %}
+        <section class="metrics-grid">
+            <article class="metric-card highlight">
+                <span>Raised So Far</span>
+                <strong>PHP {{ "{:,.2f}".format(display_raised) }}</strong>
+                <small>{{ "{:.1f}".format(public_summary.progress_percent) }}% of goal</small>
+            </article>
+            <article class="metric-card">
+                <span>Goal Amount</span>
+                <strong>PHP {{ "{:,.2f}".format(public_summary.goal_amount) }}</strong>
+                <small>Campaign target</small>
+            </article>
+            <article class="metric-card">
+                <span>Remaining to Goal</span>
+                <strong>PHP {{ "{:,.2f}".format(public_summary.remaining_to_goal) }}</strong>
+                <small>Still needed</small>
+            </article>
+            <article class="metric-card">
+                <span>Paid Donations</span>
+                <strong>{{ public_summary.paid_donations }}</strong>
+                <small>Successful contributions</small>
+            </article>
+            <article class="metric-card">
+                <span>Beneficiary Records</span>
+                <strong>{{ beneficiary_stats.total_beneficiaries }}</strong>
+                <small>Registered in the platform</small>
+            </article>
+            <article class="metric-card">
+                <span>Verified Beneficiaries</span>
+                <strong>{{ beneficiary_stats.verified_beneficiaries }}</strong>
+                <small>Marked verified in records</small>
+            </article>
+            <article class="metric-card">
+                <span>Average Donation</span>
+                <strong>PHP {{ "{:,.2f}".format(public_summary.avg_donation) }}</strong>
+                <small>Across paid donations</small>
+            </article>
+            <article class="metric-card">
+                <span>Blockchain Entries</span>
+                <strong>{{ public_summary.blockchain_records }}</strong>
+                <small>Donation records with hash</small>
+            </article>
+            <article class="metric-card">
+                <span>Completion Proofs</span>
+                <strong>{{ public_summary.completion_proofs }}</strong>
+                <small>Public proof images uploaded by Treasurer</small>
+            </article>
+        </section>
+
+        <section class="content-grid">
+            <article class="panel-card">
+                <div class="section-head">
+                    <h2>Campaign Progress</h2>
+                    <span>{{ "{:.1f}".format(public_summary.progress_percent) }}%</span>
+                </div>
+                <div class="progress-bar large">
+                    <span style="width: {{ '%.2f'|format((public_summary.progress_percent or 0)|float) }}%;"></span>
+                </div>
+                <div class="amount-row wide">
+                    <strong>PHP {{ "{:,.2f}".format(display_raised) }} raised</strong>
+                    <span>Goal: PHP {{ "{:,.2f}".format(public_summary.goal_amount) }}</span>
+                </div>
+            </article>
+
+            <article class="panel-card">
+                <div class="section-head">
+                    <h2>Beneficiary Names</h2>
+                    <span>{{ beneficiary_names|length }} listed</span>
+                </div>
+                {% if beneficiary_names %}
+                <div class="name-list">
+                    {% for name in beneficiary_names %}
+                    <span class="name-pill">{{ name }}</span>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="panel-note">No beneficiary names are currently available for public display.</p>
+                {% endif %}
+            </article>
+
+            <article class="panel-card timeline-panel">
+                <div class="section-head">
+                    <h2>Transparency Timeline</h2>
+                    <span>Public-safe milestones</span>
+                </div>
+                <div class="timeline">
+                    {% for item in transparency_timeline %}
+                    <div class="timeline-item">
+                        <div class="timeline-dot {{ item.state }}"></div>
+                        <div class="timeline-copy">
+                            <div class="timeline-top">
+                                <h3>{{ item.title }}</h3>
+                                <span class="timeline-state {{ item.state }}">{{ item.state|upper }}</span>
+                            </div>
+                            <p>{{ item.description }}</p>
+                            <small>{{ item.timestamp.strftime('%B %d, %Y %I:%M %p') if item.timestamp else 'Waiting for next update' }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </article>
+
+            <article class="panel-card">
+                <div class="section-head">
+                    <h2>Recent Paid Donations</h2>
+                    <span>Latest public entries</span>
+                </div>
+                {% if recent_paid_donations %}
+                <div class="donation-list">
+                    {% for donation in recent_paid_donations %}
+                    <div class="donation-row">
+                        <div>
+                            <strong>{{ donation.don_donorname or 'Anonymous' }}</strong>
+                            <small>{{ donation.don_date.strftime('%B %d, %Y %I:%M %p') if donation.don_date else 'Date unavailable' }}</small>
+                        </div>
+                        <div class="donation-row-right">
+                            <strong>PHP {{ "{:,.2f}".format(donation.don_amount or 0) }}</strong>
+                            {% if donation.blockchain_tx_hash %}
+                            <a href="{{ url_for('blockchain_transaction_details', tx_hash=donation.blockchain_tx_hash) }}">View proof</a>
+                            {% else %}
+                            <span class="muted">No blockchain hash</span>
+                            {% endif %}
+                            <span class="muted">Usage: {{ donation.fund_usage_status }}</span>
+                            {% if donation.proof_count %}
+                            <span class="muted">{{ donation.proof_count }} completion proof{{ '' if donation.proof_count == 1 else 's' }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="panel-note">No paid donations have been recorded for this fundraiser yet.</p>
+                {% endif %}
+            </article>
+
+            <article class="panel-card history-panel">
+                <div class="section-head">
+                    <h2>Fund History</h2>
+                    <span>Audit events and milestones</span>
+                </div>
+                {% if fund_history %}
+                <div class="history-list">
+                    {% for event in fund_history %}
+                    <div class="history-item">
+                        <div class="history-row">
+                            <div>
+                                <strong>{{ event.action }}</strong>
+                                <p>{{ event.status }}</p>
+                            </div>
+                            <small>{{ event.timestamp.strftime('%B %d, %Y %I:%M %p') if event.timestamp else 'Date unavailable' }}</small>
+                        </div>
+                        {% if event.details %}
+                        <div class="history-meta">
+                            <span>Details:</span>
+                            <pre>{{ event.details }}</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="panel-note">No transparent history events are available yet for this fundraiser.</p>
+                {% endif %}
+            </article>
+
+            <article class="panel-card proof-panel">
+                <div class="section-head">
+                    <h2>Completion Proof</h2>
+                    <span>{{ public_summary.completion_proofs }} uploaded</span>
+                </div>
+                {% if donation_completion_proofs %}
+                <div class="proof-list">
+                    {% for proof in donation_completion_proofs %}
+                    <figure class="proof-item">
+                        <a href="{{ proof.public_url }}" target="_blank" rel="noopener">
+                            <img src="{{ proof.public_url }}" alt="Donation completion proof for {{ fundraiser.fund_title }}">
+                        </a>
+                        <figcaption>
+                            <strong>{{ proof.don_refnum or ('Donation #' ~ proof.donation_id) }}</strong>
+                            <small>PHP {{ "{:,.2f}".format(proof.don_amount or 0) }} | {{ proof.uploaded_at.strftime('%B %d, %Y %I:%M %p') if proof.uploaded_at else 'Date unavailable' }}</small>
+                            {% if proof.proof_note %}
+                            <p>{{ proof.proof_note }}</p>
+                            {% endif %}
+                        </figcaption>
+                    </figure>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if completion_proofs %}
+                <div class="proof-list">
+                    {% for proof in completion_proofs %}
+                    <figure class="proof-item">
+                        <a href="{{ proof.public_url }}" target="_blank" rel="noopener">
+                            <img src="{{ proof.public_url }}" alt="Completion proof for {{ fundraiser.fund_title }}">
+                        </a>
+                        <figcaption>
+                            <strong>{{ proof.original_filename or 'Completion proof' }}</strong>
+                            <small>{{ proof.uploaded_at.strftime('%B %d, %Y %I:%M %p') if proof.uploaded_at else 'Date unavailable' }}</small>
+                            {% if proof.proof_note %}
+                            <p>{{ proof.proof_note }}</p>
+                            {% endif %}
+                        </figcaption>
+                    </figure>
+                    {% endfor %}
+                </div>
+                {% elif not donation_completion_proofs %}
+                <p class="panel-note">No completion proof image has been uploaded yet.</p>
+                {% endif %}
+            </article>
+        </section>
+    </main>
+</body>
+</html>

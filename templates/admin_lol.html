@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FundFlow Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6366f1',
+                        secondary: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .progress-bar {
+            transition: width 0.6s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .tooltip {
+            position: relative;
+        }
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <i data-feather="heart" class="text-primary h-8 w-8"></i>
+                    <h1 class="text-2xl font-bold text-gray-900">FundFlow</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition flex items-center">
+                        <i data-feather="plus" class="mr-2"></i> New Campaign
+                    </button>
+                    <div class="relative">
+                        <i data-feather="bell" class="text-gray-500 hover:text-primary cursor-pointer"></i>
+                        <span class="absolute -top-1 -right-1 bg-secondary text-white text-xs rounded-full h-4 w-4 flex items-center justify-center">3</span>
+                    </div>
+                    <div class="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <i data-feather="user" class="text-primary h-4 w-4"></i>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Dashboard Overview -->
+            <section class="mb-12">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Fundraising Overview</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Total Funds Raised -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm">Total Raised</p>
+                                <h3 class="text-2xl font-bold text-gray-900 mt-1">$124,589</h3>
+                                <p class="text-green-500 text-sm mt-1 flex items-center">
+                                    <i data-feather="trending-up" class="w-4 h-4 mr-1"></i> 12.5% from last month
+                                </p>
+                            </div>
+                            <div class="bg-primary/10 p-3 rounded-lg">
+                                <i data-feather="dollar-sign" class="text-primary w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Fundraisers -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm">Active Fundraisers</p>
+                                <h3 class="text-2xl font-bold text-gray-900 mt-1">28</h3>
+                                <p class="text-blue-500 text-sm mt-1 flex items-center">
+                                    <i data-feather="clock" class="w-4 h-4 mr-1"></i> 5 ending soon
+                                </p>
+                            </div>
+                            <div class="bg-secondary/10 p-3 rounded-lg">
+                                <i data-feather="activity" class="text-secondary w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Average Donation -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm">Avg. Donation</p>
+                                <h3 class="text-2xl font-bold text-gray-900 mt-1">$142</h3>
+                                <p class="text-yellow-500 text-sm mt-1 flex items-center">
+                                    <i data-feather="users" class="w-4 h-4 mr-1"></i> 876 donors
+                                </p>
+                            </div>
+                            <div class="bg-yellow-100 p-3 rounded-lg">
+                                <i data-feather="award" class="text-yellow-500 w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Campaigns -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-gray-500 text-sm">Top Campaign</p>
+                                <h3 class="text-lg font-semibold text-gray-900 mt-1">Children's Hospital</h3>
+                                <p class="text-primary text-sm mt-1 flex items-center">
+                                    <i data-feather="star" class="w-4 h-4 mr-1"></i> $42,450 raised
+                                </p>
+                            </div>
+                            <div class="bg-green-100 p-3 rounded-lg">
+                                <i data-feather="thumbs-up" class="text-green-500 w-6 h-6"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Section -->
+            <section class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                <!-- Line Chart - Donation Trends -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-gray-800">Donation Trends</h3>
+                        <select class="text-sm border-gray-200 rounded-md px-2 py-1 bg-gray-50 focus:ring-primary focus:border-primary">
+                            <option>Last 7 days</option>
+                            <option selected>Last 30 days</option>
+                            <option>Last 90 days</option>
+                        </select>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Pie Chart - Categories -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-gray-800">Donations by Category</h3>
+                        <div class="flex space-x-2">
+                            <button class="text-xs bg-gray-100 px-2 py-1 rounded">Export</button>
+                        </div>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filter Section -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                    <div class="relative">
+                        <i data-feather="search" class="absolute left-3 top-3 text-gray-400"></i>
+                        <input type="text" placeholder="Search campaigns..." class="pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:ring-primary focus:border-primary w-full md:w-64">
+                    </div>
+                    <div class="flex flex-wrap gap-3">
+                        <select class="text-sm border-gray-200 rounded-md px-3 py-2 bg-gray-50 focus:ring-primary focus:border-primary">
+                            <option>All Categories</option>
+                            <option>Medical</option>
+                            <option>Education</option>
+                            <option>Community</option>
+                            <option>Animals</option>
+                        </select>
+                        <select class="text-sm border-gray-200 rounded-md px-3 py-2 bg-gray-50 focus:ring-primary focus:border-primary">
+                            <option>All Status</option>
+                            <option selected>Active</option>
+                            <option>Ended</option>
+                        </select>
+                        <select class="text-sm border-gray-200 rounded-md px-3 py-2 bg-gray-50 focus:ring-primary focus:border-primary">
+                            <option>Sort by</option>
+                            <option selected>Newest</option>
+                            <option>Ending Soonest</option>
+                            <option>Most Funded</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Campaign Cards -->
+            <section>
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Active Campaigns</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Campaign Card 1 -->
+                    <div class="bg-white rounded-lg shadow overflow-hidden transition duration-300 card-hover">
+                        <div class="relative h-40 overflow-hidden">
+                            <img src="http://static.photos/medical/640x360/1" alt="Campaign" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                                <span class="bg-primary text-white text-xs px-2 py-1 rounded">Medical</span>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-bold text-lg text-gray-900 mb-2">Children's Hospital Expansion</h3>
+                            <p class="text-gray-500 text-sm mb-4">Help us build a new wing for pediatric care at City Hospital</p>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between text-sm text-gray-500 mb-1">
+                                    <span>$42,450 raised</span>
+                                    <span>85%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary h-2 rounded-full progress-bar" style="width: 85%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>$50,000 goal</span>
+                                    <span class="text-primary font-medium">15 days left</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <i data-feather="users" class="w-4 h-4 mr-1"></i>
+                                    <span>342 donors</span>
+                                </div>
+                                <button class="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition text-sm">
+                                    Donate Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campaign Card 2 -->
+                    <div class="bg-white rounded-lg shadow overflow-hidden transition duration-300 card-hover">
+                        <div class="relative h-40 overflow-hidden">
+                            <img src="http://static.photos/education/640x360/2" alt="Campaign" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                                <span class="bg-secondary text-white text-xs px-2 py-1 rounded">Education</span>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-bold text-lg text-gray-900 mb-2">School Supplies for All</h3>
+                            <p class="text-gray-500 text-sm mb-4">Providing backpacks and supplies to underprivileged students</p>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between text-sm text-gray-500 mb-1">
+                                    <span>$18,720 raised</span>
+                                    <span>62%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-secondary h-2 rounded-full progress-bar" style="width: 62%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>$30,000 goal</span>
+                                    <span class="text-secondary font-medium">7 days left</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <i data-feather="users" class="w-4 h-4 mr-1"></i>
+                                    <span>128 donors</span>
+                                </div>
+                                <button class="bg-secondary text-white px-4 py-2 rounded-md hover:bg-secondary/90 transition text-sm">
+                                    Donate Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Campaign Card 3 -->
+                    <div class="bg-white rounded-lg shadow overflow-hidden transition duration-300 card-hover">
+                        <div class="relative h-40 overflow-hidden">
+                            <img src="http://static.photos/community/640x360/3" alt="Campaign" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
+                                <span class="bg-green-500 text-white text-xs px-2 py-1 rounded">Community</span>
+                            </div>
+                        </div>
+                        <div class="p-5">
+                            <h3 class="font-bold text-lg text-gray-900 mb-2">Neighborhood Food Drive</h3>
+                            <p class="text-gray-500 text-sm mb-4">Stocking our local food bank for the winter season</p>
+                            
+                            <div class="mb-4">
+                                <div class="flex justify-between text-sm text-gray-500 mb-1">
+                                    <span>$9,845 raised</span>
+                                    <span>39%</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full progress-bar" style="width: 39%"></div>
+                                </div>
+                                <div class="flex justify-between text-xs text-gray-400 mt-1">
+                                    <span>$25,000 goal</span>
+                                    <span class="text-green-500 font-medium">21 days left</span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center text-sm text-gray-500">
+                                    <i data-feather="users" class="w-4 h-4 mr-1"></i>
+                                    <span>94 donors</span>
+                                </div>
+                                <button class="bg-green-500 text-white px-4 py-2 rounded-md hover:bg-green-600 transition text-sm">
+                                    Donate Now
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Top Donors Section -->
+            <section class="mt-12">
+                <h2 class="text-xl font-semibold text-gray-800 mb-6">Top Donors</h2>
+                <div class="bg-white rounded-lg shadow overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Donor</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Campaign</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <i data-feather="user" class="text-primary w-5 h-5"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">Alex Johnson</div>
+                                                <div class="text-sm text-gray-500">alex@example.com</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">Children's Hospital</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-primary">$5,000</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oct 15, 2023</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                                                <i data-feather="user" class="text-secondary w-5 h-5"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">Sarah Williams</div>
+                                                <div class="text-sm text-gray-500">sarah@example.com</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">School Supplies</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-secondary">$3,500</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oct 10, 2023</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                                <i data-feather="user" class="text-yellow-500 w-5 h-5"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">Michael Chen</div>
+                                                <div class="text-sm text-gray-500">michael@example.com</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">Food Drive</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-yellow-500">$2,800</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oct 5, 2023</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="flex items-center">
+                                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                                <i data-feather="user" class="text-green-500 w-5 h-5"></i>
+                                            </div>
+                                            <div class="ml-4">
+                                                <div class="text-sm font-medium text-gray-900">Jessica Lee</div>
+                                                <div class="text-sm text-gray-500">jessica@example.com</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div class="text-sm text-gray-900">Animal Shelter</div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="text-sm font-semibold text-green-500">$2,000</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Oct 3, 2023</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Initialize charts when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            feather.replace();
+            
+            // Line Chart - Donation Trends
+            const lineCtx = document.getElementById('lineChart').getContext('2d');
+            const lineChart = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct'],
+                    datasets: [{
+                        label: 'Donations ($)',
+                        data: [8500, 9200, 10500, 11200, 9800, 12700, 14500, 13200, 15800, 18200],
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Pie Chart - Categories
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            const pieChart = new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [
+                        'Animal Rescue & Welfare',
+                        'Community',
+                        'Disaster Relief',
+                        'Family',
+                        'Education',
+                        'Livelihood Support',
+                        'Medical',
+                        'Volunteer',
+                        'Other'
+                    ],
+                    datasets: [{
+                        data: [42, 18, 23, 10, 15, 8, 12, 7, 5], // Example data, replace with dynamic if needed
+                        backgroundColor: [
+                            '#9BF6FF', // Animal Rescue & Welfare
+                            '#CAFFBF', // Community
+                            '#FFADAD', // Disaster Relief
+                            '#FFD6A5', // Family
+                            '#A0C4FF', // Education
+                            '#FDFFB6', // Livelihood Support
+                            '#BDB2FF', // Medical
+                            '#FFC6FF', // Volunteer
+                            '#D0D0D0'  // Other
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Tooltip functionality
+            document.querySelectorAll('.tooltip').forEach(el => {
+                el.addEventListener('mouseenter', function() {
+                    this.querySelector('.tooltip-text').classList.remove('invisible');
+                });
+                el.addEventListener('mouseleave', function() {
+                    this.querySelector('.tooltip-text').classList.add('invisible');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

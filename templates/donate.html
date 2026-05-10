@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ReliePH | Donate</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='donate.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+
+    <header class="navbar donate-navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('view_fundraiser', fundraiser_id=fund.fund_id) }}" class="back-link">&lt; &nbsp;  Fundraiser</a>
+        </div>
+
+        <div class="nav-center">
+          <a href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+          </a>
+        </div>
+
+        <div class="nav-right">
+          {% if not session.get('email') %}
+            <span>Already have an account? <a href="{{ url_for('goto_signin') }}" class="signin-link">Sign in</a></span>
+          {% else %}
+            <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+              {% set parts = session.get('username').split(' ') %}
+              {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+              <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+            </a>
+            <input type="hidden" id="donor-id" value="{{ session['user_id'] }}">
+            <input type="hidden" id="donor-name" value="{{ session['username'] }}">
+            <input type="hidden" id="donor-email" value="{{ session['email'] }}">
+          {% endif %}
+        </div>
+    </header>
+
+  <main class="donation-container">
+    <h1 class="donation-title">{{ fund.fund_title }}</h1>
+
+    <label class="section-label">Enter your donation</label>
+    <div class="preset-buttons">
+      {% set min_donation = settings.get('min_donation', 50) %}
+      {% set max_donation = remaining_amount %}
+      <button {% if min_donation > max_donation %}disabled{% endif %}>₱{{ min_donation }}</button>
+      <button {% if 100 > max_donation %}disabled{% endif %}>₱100</button>
+      <button {% if 250 > max_donation %}disabled{% endif %}>₱250</button>
+      <button {% if 500 > max_donation %}disabled{% endif %}>₱500</button>
+      <button {% if 1000 > max_donation %}disabled{% endif %}>₱1000</button>
+    </div>
+
+    <div class="custom-donation">
+      <span class="currency">₱</span>
+      <input type="text" name="donation-input" id="donation-input" min="0" step="1" 
+            data-min-donation="{{ settings.get('min_donation', 50) }}" 
+            data-max-donation="{{ remaining_amount }}"
+            max="{{ remaining_amount }}">
+      <span class="decimal" style="pointer-events: none; user-select: none;">.00</span>
+    </div>
+
+    <label class="section-label">Transaction Method</label>
+    
+    {% if saved_payment_methods %}
+    <div class="saved-payment-methods">
+      <h4 class="saved-methods-title">Saved Transaction Methods</h4>
+      {% for method in saved_payment_methods %}
+      <label class="saved-payment-option {% if method.is_default %}selected{% endif %}">
+        <input type="radio" name="payment" class="saved-method" value="saved_{{ method.id }}" 
+              {% if method.is_default %}checked{% endif %} />
+        <div class="saved-method-info">
+          <div class="method-type">{{ method.method_type }}</div>
+          <div class="method-details">
+            <span class="account-name">{{ method.account_name }}</span>
+            <span class="account-number">****{{ method.account_number[-4:] }}</span>
+          </div>
+          {% if method.is_default %}
+          <span class="default-badge">Default</span>
+          {% endif %}
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="payment-methods">
+      <label class="payment-option {% if not saved_payment_methods %}selected{% endif %}">
+        <input type="radio" name="payment" class="gcash" {% if not saved_payment_methods %}checked{% endif %} />
+        <img src="{{ url_for('static', filename='images/gcash.png') }}" alt="GCash">
+        GCash
+      </label>
+
+      <label class="payment-option">
+        <input type="radio" name="payment" class="credit-card" />
+        <img src="{{ url_for('static', filename='images/credit_card.png') }}" alt="Credit Card">
+        Bank Transfer
+      </label>
+
+      <label class="payment-option">
+        <input type="radio" name="payment" class="qrph" />
+        <img src="{{ url_for('static', filename='images/qr.png') }}" alt="QR Ph">
+        QR Ph
+      </label>
+
+      <div class="form" style="display: none;">
+        {% if saved_payment_methods %}
+        <div class="saved-credit-cards">
+          <h4 class="saved-credit-title">Saved Bank Accounts</h4>
+          {% for method in saved_payment_methods %}
+            {% if method.method_type == 'Credit Card' %}
+            <label class="saved-credit-option {% if method.is_default %}selected{% endif %}">
+              <input type="radio" name="saved-credit" class="saved-credit-method" value="saved_{{ method.id }}" 
+                    {% if method.is_default %}checked{% endif %} />
+              <div class="saved-credit-info">
+                <div class="credit-type">{{ method.method_type }}</div>
+                <div class="credit-details">
+                  <span class="credit-name">{{ method.account_name }}</span>
+                  <span class="credit-number">****{{ method.account_number[-4:] }}</span>
+                </div>
+                {% if method.is_default %}
+                <span class="default-badge">Default</span>
+                {% endif %}
+              </div>
+            </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        
+        <div class="card-form">
+          <input type="email" id="card-email" placeholder="Email Address" required>
+          <div class="name-row">
+            <input type="text" id="card-first-name" placeholder="First Name" required>
+            <input type="text" id="card-last-name" placeholder="Last Name" required>
+          </div>
+          <input type="text" id="card-number" placeholder="Card number" required>
+          <div class="card-details-row">
+            <input type="text" id="card-expiry" placeholder="MM / YY" required>
+            <input type="text" id="card-cvv" placeholder="CVV" required>
+          </div>
+          <input type="text" id="card-name" placeholder="Name on card" required>
+          <div class="address-row">
+            <select id="card-country" required>
+              <option>Philippines</option>
+            </select>
+            <input type="text" id="card-postal" placeholder="Postal code" required>
+          </div>
+        </div>
+        {% if session.get('email') %}
+        <label class="save-card-checkbox">
+          <input type="checkbox" id="save-payment-method">Save transaction method for future donations
+        </label>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if not session.get('email') %}
+    <div class="guest-donor-section">
+      <label class="section-label">Your Information (Optional)</label>
+      <div class="guest-fields">
+        <input type="text" id="guest-donor-name" placeholder="Your name (optional)" class="guest-input">
+        <input type="email" id="guest-donor-email" placeholder="Your email (optional)" class="guest-input">
+      </div>
+      <p class="guest-note">Providing your information helps us send you a receipt and updates about this fundraiser.</p>
+    </div>
+    {% endif %}
+
+    {% if session.get('email') %}
+    <label class="checkbox">
+      <input type="checkbox"> Don't display my name publicly on the fundraiser.
+    </label>
+    {% endif %}
+
+    <div class="summary">
+      <label class="section-label">Your Donation</label>
+      <p class="hi" style="display: none;">Donation amount<span class="amount">₱<span id="donation-price">0.00</span></span></p>
+
+      <p class="ttl">Total due today <span class="amount">₱<span id="amount-value">0.00</span></span></p>
+    </div>
+
+    <label class="checkbox terms-checkbox" id="terms-label">
+      <input type="checkbox" id="terms-agree"> I agree to ReliePH's <a href="{{ url_for('terms_and_conditions') }}" style="color: #916de8;">Terms and Conditions</a> and <a href="{{ url_for('privacy_notice') }}" style="color: #916de8;">Privacy Notice</a>.
+    </label>
+
+    <button class="donate-btn">Donate now</button>
+    <p class="terms-text">You must agree to the terms and conditions before donating.</p>
+  </main>
+
+  <script>
+  const input = document.getElementById('donation-input');
+  const buttons = document.querySelectorAll('.preset-buttons button');
+  const amountValue = document.getElementById('amount-value');
+
+  function updateAmount() {
+    let value = input.value.replace(/[^\d]/g, '');
+    if (value === '') value = '0';
+    let donation = parseInt(value, 10);
+    const maxDonation = parseInt(input.dataset.maxDonation || '999999999', 10);
+
+    if (donation > maxDonation) {
+      donation = maxDonation;
+      input.value = maxDonation.toString();
+    }
+
+    document.getElementById('donation-price').textContent = donation.toLocaleString() + '.00';
+    amountValue.textContent = donation.toLocaleString() + '.00';
+  }
+
+  buttons.forEach(button => {
+    button.addEventListener('click', () => {
+      if (button.disabled) return;
+      const amount = button.textContent.replace('₱', '').trim();
+      const maxDonation = parseInt(input.dataset.maxDonation || '999999999', 10);
+      const requestedAmount = parseInt(amount, 10);
+      
+      if (requestedAmount <= maxDonation) {
+        input.value = amount;
+        updateAmount();
+      }
+    });
+  });
+
+  input.addEventListener('input', updateAmount);
+
+  function filterPasswordInput(e) {
+    const allowed = /[0-9]/;
+    if (!allowed.test(e.key) && e.key.length === 1) {
+      e.preventDefault();
+    }
+  }
+  input.addEventListener('keypress', filterPasswordInput);
+
+  const gcashRadio = document.querySelector('.gcash');
+  const creditCardRadio = document.querySelector('.credit-card');
+  const qrphRadio = document.querySelector('.qrph');
+  const cardForm = document.querySelector('.form');
+  const savedMethods = document.querySelectorAll('.saved-method');
+  const savedCreditMethods = document.querySelectorAll('.saved-credit-method');
+  const sessionDonorName = "{{ session.get('username', '')|e }}";
+  const sessionDonorEmail = "{{ session.get('email', '')|e }}";
+  const fundraiserId = "{{ fund.fund_id }}";
+  const donationCompletedKey = `relieph:donation-completed:${fundraiserId}`;
+  let donationSubmissionLocked = false;
+
+  function getDonateButton() {
+    return document.querySelector('.donate-btn');
+  }
+
+  function setDonationSubmitting(isSubmitting, message) {
+    donationSubmissionLocked = isSubmitting;
+    const donateBtn = getDonateButton();
+    if (!donateBtn) return;
+
+    if (!donateBtn.dataset.originalText) {
+      donateBtn.dataset.originalText = donateBtn.textContent;
+    }
+
+    donateBtn.disabled = isSubmitting;
+    donateBtn.textContent = isSubmitting ? (message || 'Processing...') : donateBtn.dataset.originalText;
+  }
+
+  function unlockDonationForm() {
+    setDonationSubmitting(false);
+  }
+
+  function redirectAwayFromDonationPage(url, completedRef) {
+    if (!url) return;
+
+    if (completedRef) {
+      try {
+        sessionStorage.setItem(donationCompletedKey, JSON.stringify({
+          ref: completedRef,
+          url: url,
+          completedAt: Date.now()
+        }));
+      } catch (error) {
+        console.warn('Unable to store donation completion marker:', error);
+      }
+    }
+
+    window.location.replace(url);
+  }
+
+  window.addEventListener('pageshow', function(event) {
+    let completedDonation = null;
+    const navEntry = performance.getEntriesByType ? performance.getEntriesByType('navigation')[0] : null;
+    const isBackForwardNavigation = event.persisted || (navEntry && navEntry.type === 'back_forward');
+
+    try {
+      completedDonation = JSON.parse(sessionStorage.getItem(donationCompletedKey) || 'null');
+    } catch (error) {
+      completedDonation = null;
+    }
+
+    if (isBackForwardNavigation && completedDonation && completedDonation.url) {
+      redirectAwayFromDonationPage(completedDonation.url);
+      return;
+    }
+
+    if (!isBackForwardNavigation && completedDonation) {
+      sessionStorage.removeItem(donationCompletedKey);
+    }
+
+    if (isBackForwardNavigation) {
+      unlockDonationForm();
+    }
+  });
+  
+  console.log('Payment elements found:', {
+    gcashRadio: gcashRadio ? 'found' : 'not found',
+    creditCardRadio: creditCardRadio ? 'found' : 'not found',
+    qrphRadio: qrphRadio ? 'found' : 'not found',
+    cardForm: cardForm ? 'found' : 'not found',
+    savedMethods: savedMethods.length,
+    savedCreditMethods: savedCreditMethods.length
+  });
+
+  // Handle saved payment methods (GCash, etc.)
+  savedMethods.forEach(method => {
+    method.addEventListener('change', function() {
+      if (this.checked) {
+        cardForm.style.display = 'none';
+        gcashRadio.checked = false;
+        creditCardRadio.checked = false;
+        if (qrphRadio) qrphRadio.checked = false;
+        // Uncheck saved credit methods
+        savedCreditMethods.forEach(creditMethod => creditMethod.checked = false);
+      }
+    });
+  });
+
+  // Handle saved credit card methods
+  savedCreditMethods.forEach(method => {
+    method.addEventListener('change', function() {
+      if (this.checked) {
+        // Hide the card form when using saved credit card
+        const cardFormInputs = cardForm.querySelector('.card-form');
+        if (cardFormInputs) {
+          cardFormInputs.style.display = 'none';
+        }
+        gcashRadio.checked = false;
+        creditCardRadio.checked = false;
+        if (qrphRadio) qrphRadio.checked = false;
+        // Uncheck other saved methods
+        savedMethods.forEach(savedMethod => savedMethod.checked = false);
+      }
+    });
+  });
+
+  if (gcashRadio) {
+    gcashRadio.addEventListener('change', function() {
+      if (gcashRadio.checked) {
+        cardForm.style.display = 'none';
+        savedMethods.forEach(method => method.checked = false);
+        savedCreditMethods.forEach(method => method.checked = false);
+      }
+    });
+  }
+  
+  if (creditCardRadio) {
+    creditCardRadio.addEventListener('change', function() {
+      if (creditCardRadio.checked) {
+        cardForm.style.display = 'block';
+        // Show card form inputs
+        const cardFormInputs = cardForm.querySelector('.card-form');
+        if (cardFormInputs) {
+          cardFormInputs.style.display = 'block';
+        }
+        savedMethods.forEach(method => method.checked = false);
+        savedCreditMethods.forEach(method => method.checked = false);
+      }
+    });
+  }
+
+  if (qrphRadio) {
+    qrphRadio.addEventListener('change', function() {
+      if (qrphRadio.checked) {
+        cardForm.style.display = 'none';
+        savedMethods.forEach(method => method.checked = false);
+        savedCreditMethods.forEach(method => method.checked = false);
+      }
+    });
+  }
+
+  async function savePaymentMethod(paymentData) {
+    try {
+      const response = await fetch('/payment-methods', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(paymentData)
+      });
+      
+      if (response.ok) {
+        console.log('Transaction method saved successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error saving transaction method:', error);
+      return false;
+    }
+  }
+
+  function formatCardNumber(input) {
+    let value = input.value.replace(/\s/g, '').replace(/[^0-9]/gi, '');
+    let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
+    if (formattedValue.length > 19) formattedValue = formattedValue.substr(0, 19);
+    input.value = formattedValue;
+  }
+
+  function formatExpiry(input) {
+    let value = input.value.replace(/\D/g, '');
+    if (value.length >= 2) {
+      value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    }
+    input.value = value;
+  }
+
+  function formatCVV(input) {
+    input.value = input.value.replace(/\D/g, '').substring(0, 3);
+  }
+
+  function clearFieldValidation(field) {
+    field.addEventListener('input', function() {
+      this.classList.remove('invalid-field');
+    });
+  }
+
+  window.addEventListener('DOMContentLoaded', function() {
+    cardForm.style.display = (creditCardRadio && creditCardRadio.checked) ? 'block' : 'none';
+    updateAmount();
+    
+    const donateBtn = document.querySelector('.donate-btn');
+    if (donateBtn) {
+      console.log('Donate button found and ready');
+      
+      donateBtn.addEventListener('click', function(e) {
+        console.log('Test click handler triggered');
+      });
+    } else {
+      console.error('Donate button not found!');
+    }
+
+    const donationInput = document.getElementById('donation-input');
+    const customDonationContainer = document.querySelector('.custom-donation');
+    if (donationInput) {
+      donationInput.addEventListener('input', function() {
+        customDonationContainer.classList.remove('invalid-field');
+      });
+    }
+
+    const cardFields = [
+      'card-email',
+      'card-first-name', 
+      'card-last-name',
+      'card-number',
+      'card-expiry',
+      'card-cvv',
+      'card-name',
+      'card-postal'
+    ];
+    
+    cardFields.forEach(fieldId => {
+      const field = document.getElementById(fieldId);
+      if (field) {
+        clearFieldValidation(field);
+      }
+    });
+
+    const cardNumber = document.getElementById('card-number');
+    const cardExpiry = document.getElementById('card-expiry');
+    const cardCvv = document.getElementById('card-cvv');
+
+    if (cardNumber) {
+      cardNumber.addEventListener('input', () => formatCardNumber(cardNumber));
+    }
+    if (cardExpiry) {
+      cardExpiry.addEventListener('input', () => formatExpiry(cardExpiry));
+    }
+    if (cardCvv) {
+      cardCvv.addEventListener('input', () => formatCVV(cardCvv));
+    }
+  });
+
+  function clearValidationErrors() {
+    const invalidFields = document.querySelectorAll('.invalid-field');
+    invalidFields.forEach(field => {
+      field.classList.remove('invalid-field');
+    });
+  }
+
+  function validateRequiredFields() {
+    let hasErrors = false;
+    
+    clearValidationErrors();
+    
+    const donationInput = document.getElementById('donation-input');
+    const customDonationContainer = document.querySelector('.custom-donation');
+    const rawDonationStr = (donationInput.value || '').replace(/[^\d]/g, '');
+    const donation = parseInt(rawDonationStr || '0', 10);
+    
+    if (donation < 1) {
+      customDonationContainer.classList.add('invalid-field');
+      hasErrors = true;
+    }
+    
+    const creditCardRadio = document.querySelector('.credit-card');
+    if (creditCardRadio && creditCardRadio.checked) {
+      const requiredCardFields = [
+        'card-email',
+        'card-first-name', 
+        'card-last-name',
+        'card-number',
+        'card-expiry',
+        'card-cvv',
+        'card-name',
+        'card-postal'
+      ];
+      
+      requiredCardFields.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field && !field.value.trim()) {
+          field.classList.add('invalid-field');
+          hasErrors = true;
+        }
+      });
+    }
+    
+    return !hasErrors;
+  }
+
+  document.querySelector('.donate-btn').addEventListener('click', async function(e) {
+    try {
+      e.preventDefault();
+      if (donationSubmissionLocked) {
+        alert('Your donation is already being processed. Please wait.');
+        return;
+      }
+      console.log('Donate button clicked');
+
+      const termsCheckbox = document.getElementById('terms-agree');
+      if (!termsCheckbox.checked) {
+        document.getElementById('terms-label').style.color = '#dc3545';
+        alert('Please agree to the Terms of Service and Privacy Notice before donating.');
+        return;
+      }
+      document.getElementById('terms-label').style.color = '';
+
+      if (!validateRequiredFields()) {
+        alert('Please fill in all required fields.');
+        return;
+      }
+
+      const donationInput = document.getElementById('donation-input');
+      if (!donationInput) {
+        throw new Error('Donation input field not found');
+      }
+      
+      const rawDonationStr = (donationInput.value || '').replace(/[^\d]/g, '');
+      const donation = parseInt(rawDonationStr || '0', 10);
+      console.log('Donation amount:', donation);
+
+    if (donation < 1) {
+      alert('Please enter a valid donation amount.');
+      return;
+    }
+
+    const minDonation = parseInt('1');
+    const maxDonation = parseInt(document.getElementById('donation-input').dataset.maxDonation || '999999999');
+    
+    if (donation < minDonation) {
+      alert('Minimum donation amount is ₱' + minDonation + '.');
+      return;
+    }
+    
+    if (donation > maxDonation) {
+      alert('Maximum donation amount is ₱' + maxDonation.toLocaleString() + '. This fundraiser has already reached its goal.');
+      return;
+    }
+
+    const amount = donation * 100;
+    console.log('Amount in cents:', amount);
+
+    const anonCheckbox = document.querySelector('.checkbox input[type="checkbox"]');
+    console.log('Anonymous checkbox:', anonCheckbox ? anonCheckbox.checked : 'not found');
+    let donorIdValue = null;
+    let donorEmail = null;
+    let donorName = null;
+    
+    if (anonCheckbox && !anonCheckbox.checked) {
+      const donorIdElement = document.getElementById('donor-id');
+      if (donorIdElement) {
+        donorIdValue = donorIdElement.value;
+        donorName = document.getElementById('donor-name') ? document.getElementById('donor-name').value : 'Anonymous';
+        donorEmail = document.getElementById('donor-email') ? document.getElementById('donor-email').value : null;
+      } else {
+        donorIdValue = null;
+        donorName = document.getElementById('guest-donor-name') ? document.getElementById('guest-donor-name').value : 'Anonymous';
+        donorEmail = document.getElementById('guest-donor-email') ? document.getElementById('guest-donor-email').value : null;
+      }
+    } else {
+      donorName = 'Anonymous';
+    }
+    
+    console.log('Donor info being sent:', {
+      donorId: donorIdValue,
+      donorName: donorName,
+      donorEmail: donorEmail
+    });
+
+    const gcashRadio = document.querySelector('.gcash');
+    const creditCardRadio = document.querySelector('.credit-card');
+    const qrphRadio = document.querySelector('.qrph');
+    const selectedSavedMethod = document.querySelector('.saved-method:checked');
+    const selectedSavedCreditMethod = document.querySelector('.saved-credit-method:checked');
+    
+    console.log('Payment methods found:', {
+      gcash: gcashRadio ? 'found' : 'not found',
+      creditCard: creditCardRadio ? 'found' : 'not found',
+      qrph: qrphRadio ? 'found' : 'not found',
+      savedMethod: selectedSavedMethod ? 'found' : 'not found',
+      savedCreditMethod: selectedSavedCreditMethod ? 'found' : 'not found'
+    });
+    
+    console.log('Payment methods checked:', {
+      gcash: gcashRadio ? gcashRadio.checked : 'N/A',
+      creditCard: creditCardRadio ? creditCardRadio.checked : 'N/A',
+      qrph: qrphRadio ? qrphRadio.checked : 'N/A',
+      savedMethod: selectedSavedMethod ? selectedSavedMethod.checked : 'N/A',
+      savedCreditMethod: selectedSavedCreditMethod ? selectedSavedCreditMethod.checked : 'N/A'
+    });
+    
+    if (!gcashRadio && !creditCardRadio && !qrphRadio && !selectedSavedMethod && !selectedSavedCreditMethod) {
+      throw new Error('No payment methods found');
+    }
+    
+    const isGcashSelected = gcashRadio ? gcashRadio.checked : false;
+    const isCreditCardSelected = creditCardRadio ? creditCardRadio.checked : false;
+    const isQrphSelected = qrphRadio ? qrphRadio.checked : false;
+    const isSavedMethodSelected = selectedSavedMethod ? selectedSavedMethod.checked : false;
+    const isSavedCreditMethodSelected = selectedSavedCreditMethod ? selectedSavedCreditMethod.checked : false;
+    
+    if (!isGcashSelected && !isCreditCardSelected && !isQrphSelected && !isSavedMethodSelected && !isSavedCreditMethodSelected) {
+      alert('Please select a payment method.');
+      return;
+    }
+
+    setDonationSubmitting(true, 'Processing...');
+    
+    if (isSavedMethodSelected) {
+      const methodId = selectedSavedMethod.value.replace('saved_', '');
+      console.log('Using saved payment method:', methodId);
+      const response = await fetch('/donate/saved-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount,
+          fundraiser_id: "{{ fund.fund_id }}",
+          donor_id: donorIdValue,
+          donor_name: donorName,
+          donor_email: donorEmail,
+          payment_method_id: methodId
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.checkout_url) {
+        redirectAwayFromDonationPage(data.checkout_url);
+      } else {
+        const details = data && (data.details || data.error) ? "\nDetails: " + (data.details || data.error) : '';
+        alert('Failed to process payment with saved method. Please try again.' + details);
+        unlockDonationForm();
+      }
+    } else if (isGcashSelected) {
+      console.log('Using GCash payment method');
+      const response = await fetch('/paymongo/gcash', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount,
+          fundraiser_id: "{{ fund.fund_id }}",
+          donor_id: donorIdValue,
+          donor_name: donorName,
+          donor_email: donorEmail
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.checkout_url) {
+        redirectAwayFromDonationPage(data.checkout_url);
+      } else {
+        const details = data && (data.details || data.error) ? "\nDetails: " + (data.details || data.error) : '';
+        alert('Failed to initiate GCash payment. Please try again.' + details);
+        unlockDonationForm();
+      }
+    } else if (isQrphSelected) {
+      console.log('Using QRPH payment method');
+      const donateBtn = document.querySelector('.donate-btn');
+      const originalBtnText = donateBtn.textContent;
+      const qrphName = sessionDonorName || donorName || 'Anonymous';
+      const qrphEmail = sessionDonorEmail || donorEmail || 'none@example.com';
+
+      donateBtn.disabled = true;
+      donateBtn.textContent = 'Generating QR code...';
+
+      try {
+        const response = await fetch('/paymongo/qrph', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount,
+            fundraiser_id: "{{ fund.fund_id }}",
+            donor_id: donorIdValue,
+            donor_name: qrphName,
+            donor_email: qrphEmail,
+            billing: {
+              name: qrphName,
+              email: qrphEmail
+            }
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success && data.qr_page_url) {
+          donateBtn.textContent = 'Redirecting to QR code...';
+          redirectAwayFromDonationPage(data.qr_page_url);
+        } else {
+          const details = data && (data.details || data.error) ? "\nDetails: " + (data.details || data.error) : '';
+          alert('Failed to generate QR Ph code. Please try again.' + details);
+          unlockDonationForm();
+        }
+      } catch (error) {
+        console.error('Error processing QRPH payment:', error);
+        alert('An error occurred while generating the QR Ph code. Please try again.\n\nError: ' + error.message);
+        unlockDonationForm();
+      }
+    } else if (isSavedCreditMethodSelected) {
+      const methodId = selectedSavedCreditMethod.value.replace('saved_', '');
+      console.log('Using saved credit card method:', methodId);
+      const response = await fetch('/donate/saved-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount,
+          fundraiser_id: "{{ fund.fund_id }}",
+          donor_id: donorIdValue,
+          donor_name: donorName,
+          donor_email: donorEmail,
+          payment_method_id: methodId
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.checkout_url) {
+        redirectAwayFromDonationPage(data.checkout_url);
+      } else {
+        const details = data && (data.details || data.error) ? "\nDetails: " + (data.details || data.error) : '';
+        alert('Failed to process payment with saved credit card. Please try again.' + details);
+        unlockDonationForm();
+      }
+    } else if (isCreditCardSelected) {
+      console.log('Using Credit Card payment method');
+      const donateBtn = document.querySelector('.donate-btn');
+      const originalBtnText = donateBtn.textContent;
+      
+      // Show loading state
+      donateBtn.disabled = true;
+      donateBtn.textContent = 'Processing...';
+      
+      try {
+        const cardEmail = document.getElementById('card-email').value.trim();
+        const cardFirstName = document.getElementById('card-first-name').value.trim();
+        const cardLastName = document.getElementById('card-last-name').value.trim();
+        const cardNumber = document.getElementById('card-number').value.trim();
+        const cardExpiry = document.getElementById('card-expiry').value.trim();
+        const cardCvv = document.getElementById('card-cvv').value.trim();
+        const cardName = document.getElementById('card-name').value.trim();
+        const cardCountry = document.getElementById('card-country').value;
+        const cardPostal = document.getElementById('card-postal').value.trim();
+        const savePaymentMethodElement = document.getElementById('save-payment-method');
+        const savePaymentMethod = savePaymentMethodElement ? savePaymentMethodElement.checked : false;
+
+        // Validate all required fields
+        if (!cardEmail || !cardFirstName || !cardLastName || !cardNumber || !cardExpiry || !cardCvv || !cardName || !cardPostal) {
+          alert('Please fill in all required payment details.');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(cardEmail)) {
+          alert('Please enter a valid email address.');
+          document.getElementById('card-email').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate card number
+        const cleanCardNumber = cardNumber.replace(/\s/g, '');
+        if (cleanCardNumber.length < 13 || cleanCardNumber.length > 19 || !/^\d+$/.test(cleanCardNumber)) {
+          alert('Please enter a valid card number (13-19 digits).');
+          document.getElementById('card-number').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate expiry date
+        if (cardExpiry.length !== 5 || !cardExpiry.includes('/')) {
+          alert('Please enter expiry date in MM/YY format (e.g., 12/25).');
+          document.getElementById('card-expiry').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate expiry date is not in the past
+        const [month, year] = cardExpiry.split('/');
+        const expiryDate = new Date(2000 + parseInt(year), parseInt(month) - 1);
+        const now = new Date();
+        if (expiryDate < now) {
+          alert('Card expiry date cannot be in the past.');
+          document.getElementById('card-expiry').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate CVV
+        if (cardCvv.length < 3 || cardCvv.length > 4 || !/^\d+$/.test(cardCvv)) {
+          alert('Please enter a valid CVV (3 digits).');
+          document.getElementById('card-cvv').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Validate postal code
+        if (cardPostal.length < 4) {
+          alert('Please enter a valid postal code.');
+          document.getElementById('card-postal').classList.add('invalid-field');
+          unlockDonationForm();
+          return;
+        }
+
+        // Save payment method if requested (only the last 4 digits for security)
+        if (savePaymentMethod && donorIdValue) {
+          const paymentData = {
+            method_type: 'Credit Card',
+            account_name: `${cardFirstName} ${cardLastName}`,
+            account_number: '****' + cleanCardNumber.slice(-4), // Only store last 4 digits
+            is_default: false
+          };
+          await savePaymentMethod(paymentData);
+        }
+
+        const response = await fetch('/paymongo/credit-card', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: amount,
+            fundraiser_id: "{{ fund.fund_id }}",
+            donor_id: donorIdValue,
+            donor_name: donorName,
+            donor_email: donorEmail || cardEmail,
+            card_details: {
+              email: cardEmail,
+              first_name: cardFirstName,
+              last_name: cardLastName,
+              number: cleanCardNumber,
+              expiry: cardExpiry,
+              cvv: cardCvv,
+              name: cardName,
+              country: cardCountry,
+              postal_code: cardPostal
+            }
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+          if (data.success && data.status === 'succeeded') {
+            // Payment succeeded immediately - redirect to confirmation
+            donateBtn.textContent = 'Payment successful! Redirecting...';
+            setTimeout(() => {
+              redirectAwayFromDonationPage(data.redirect_url || "{{ url_for('donation_confirmation', fundraiser_id=fund.fund_id, donation_ref='') }}", data.refnum || data.reference_number || data.donation_ref);
+            }, 1000);
+          } else if (data.checkout_url || data.redirect_url) {
+            // 3D Secure authentication required or redirect needed
+            donateBtn.textContent = data.requires_3ds ? '3D Secure authentication required. Redirecting...' : 'Redirecting...';
+            setTimeout(() => {
+              redirectAwayFromDonationPage(data.checkout_url || data.redirect_url);
+            }, 500);
+          } else {
+            // Unexpected response format
+            const errorMsg = data.details || data.error || 'Payment processing failed';
+            alert('Payment processing completed but with unexpected response.\n\n' + errorMsg);
+            unlockDonationForm();
+          }
+        } else {
+          const errorMsg = data.details || data.error || 'Payment processing failed';
+          alert('Failed to process credit card payment.\n\n' + errorMsg + '\n\nPlease check your card details and try again.');
+          unlockDonationForm();
+        }
+      } catch (error) {
+        console.error('Error processing credit card payment:', error);
+        alert('An error occurred while processing your payment. Please try again.\n\nError: ' + error.message);
+        unlockDonationForm();
+      }
+    }
+    } catch (error) {
+      console.error('Error in donate button click:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        line: error.lineNumber,
+        column: error.columnNumber
+      });
+      alert('An error occurred while processing your donation. Please try again.\n\nError: ' + error.message);
+      unlockDonationForm();
+    }
+  });
+  </script>
+
+</body>
+</html>

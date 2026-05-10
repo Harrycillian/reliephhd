@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | MSWDO Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='mswdo.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">MSWDO Control Center</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="{{ url_for('signout') }}" class="logout">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('mswdo_dashboard') }}" class="nav-tab active">Dashboard</a></li>
+                <li><a href="{{ url_for('mswdo_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('mswdo_beneficiaries') }}" class="nav-tab">Beneficiaries</a></li>
+                <li><a href="{{ url_for('mswdo_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="mswdo-section">
+        <div class="dashboard-header">
+            <h1>Municipal Social Welfare & Development Office</h1>
+            <p>Central Authority for Disaster Relief Coordination</p>
+        </div>
+
+        <!-- Key Metrics Overview -->
+        <div class="metrics-grid">
+            <div class="metric-card primary">
+                <div class="metric-content">
+                    <h3>Total Donations</h3>
+                    <p class="metric-value">₱{{ "{:,}".format(total_donations) }}</p>
+                    <span class="metric-change positive">+12.5% from last month</span>
+                </div>
+            </div>
+
+            <div class="metric-card success">
+                <div class="metric-content">
+                    <h3>Active Beneficiaries</h3>
+                    <p class="metric-value">{{ active_beneficiaries }}</p>
+                    <span class="metric-change positive">+8 new this week</span>
+                </div>
+            </div>
+
+            <div class="metric-card warning">
+                <div class="metric-content">
+                    <h3>Pending Relief</h3>
+                    <p class="metric-value">{{ pending_relief }}</p>
+                    <span class="metric-change negative">Requires attention</span>
+                </div>
+            </div>
+
+            <div class="metric-card info">
+                <div class="metric-content">
+                    <h3>Relief Efficiency</h3>
+                    <p class="metric-value">{{ relief_efficiency }}%</p>
+                    <span class="metric-change positive">+5.2% improvement</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity & Alerts -->
+        <div class="dashboard-content">
+            <div class="content-left">
+                <div class="activity-card">
+                    <h3>Recent Relief Activities</h3>
+                    <div class="activity-list">
+                        <div class="activity-item">
+                            <div class="activity-content">
+                                <h4>Emergency Relief Distribution</h4>
+                                <p>Flood victims in Barangay San Jose received food packs and medical supplies</p>
+                                <span class="activity-time">2 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-content">
+                                <h4>Donation Processing Complete</h4>
+                                <p>₱50,000 from ABC Corporation processed and allocated to typhoon relief</p>
+                                <span class="activity-time">4 hours ago</span>
+                            </div>
+                        </div>
+                        <div class="activity-item">
+                            <div class="activity-content">
+                                <h4>New Beneficiary Registration</h4>
+                                <p>15 families from Barangay Poblacion registered for housing assistance</p>
+                                <span class="activity-time">6 hours ago</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="content-right">
+                <div class="alerts-card">
+                    <h3>Priority Alerts</h3>
+                    <div class="alert-list">
+                        <div class="alert-item high">
+                            <div class="alert-content">
+                                <h4>Urgent: Medical Supplies Low</h4>
+                                <p>Emergency medical supplies running low. Reorder needed.</p>
+                            </div>
+                        </div>
+                        <div class="alert-item medium">
+                            <div class="alert-content">
+                                <h4>Beneficiary Verification Due</h4>
+                                <p>25 beneficiary applications pending verification</p>
+                            </div>
+                        </div>
+                        <div class="alert-item low">
+                            <div class="alert-content">
+                                <h4>Monthly Report Due</h4>
+                                <p>Monthly relief operations report due in 3 days</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions-card">
+            <h3>Quick Actions</h3>
+            <div class="action-buttons">
+                <a href="{{ url_for('mswdo_donations') }}" class="action-btn primary">
+                    Process Donations
+                </a>
+                <a href="{{ url_for('mswdo_beneficiaries') }}" class="action-btn success">
+                    Manage Beneficiaries
+                </a>
+                <a href="{{ url_for('mswdo_reports') }}" class="action-btn info">
+                    Generate Reports
+                </a>
+                <a href="#" class="action-btn warning" onclick="openEmergencyModal()">
+                    Emergency Relief
+                </a>
+            </div>
+        </div>
+
+        <div class="distribution-status">
+            <h3>Current Relief Distribution Status</h3>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">Food Packs</div>
+                    <div class="status-bar">
+                        <div class="status-fill" style="width: 75%"></div>
+                    </div>
+                    <span class="status-text">750/1000 distributed</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Medical Supplies</div>
+                    <div class="status-bar">
+                        <div class="status-fill" style="width: 45%"></div>
+                    </div>
+                    <span class="status-text">450/1000 distributed</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Housing Materials</div>
+                    <div class="status-bar">
+                        <div class="status-fill" style="width: 90%"></div>
+                    </div>
+                    <span class="status-text">90/100 distributed</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Cash Assistance</div>
+                    <div class="status-bar">
+                        <div class="status-fill" style="width: 60%"></div>
+                    </div>
+                    <span class="status-text">₱600K/₱1M distributed</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div id="emergencyModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Emergency Relief Coordination</h3>
+                <span class="close" onclick="closeEmergencyModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="emergencyForm">
+                    <div class="form-group">
+                        <label for="emergencyType">Emergency Type</label>
+                        <select id="emergencyType" required>
+                            <option value="">Select emergency type</option>
+                            <option value="flood">Flood</option>
+                            <option value="fire">Fire</option>
+                            <option value="earthquake">Earthquake</option>
+                            <option value="typhoon">Typhoon</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="affectedArea">Affected Area</label>
+                        <input type="text" id="affectedArea" placeholder="Enter affected barangay/area" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="estimatedFamilies">Estimated Affected Families</label>
+                        <input type="number" id="estimatedFamilies" placeholder="Number of families" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reliefNeeds">Relief Needs</label>
+                        <textarea id="reliefNeeds" placeholder="Describe immediate relief needs" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn-secondary" onclick="closeEmergencyModal()">Cancel</button>
+                        <button type="submit" class="btn-primary">Activate Emergency Response</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH - MSWDO Control Center. All rights reserved.</p>
+    </footer>
+
+    <script>
+        function openEmergencyModal() {
+            document.getElementById('emergencyModal').style.display = 'block';
+        }
+
+        function closeEmergencyModal() {
+            document.getElementById('emergencyModal').style.display = 'none';
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('emergencyModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Emergency form submission
+        document.getElementById('emergencyForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Emergency response activated! Relief teams have been notified.');
+            closeEmergencyModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | In-Person Donations</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='treasurer.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">In-Person Donations</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="#" class="signout-btn" onclick="confirmSignOut()">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="treasurer-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('treasurer') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('treasurer_reports') }}" class="nav-tab">Financial Reports</a></li>
+                <li><a href="{{ url_for('treasurer_analytics') }}" class="nav-tab">Analytics</a></li>
+                <li><a href="{{ url_for('treasurer_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('treasurer_cash_donations') }}" class="nav-tab cash-donations active">In-Person Donations</a></li>
+                <li><a href="{{ url_for('treasurer_audit_trail') }}" class="nav-tab">Fund Management</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <div class="section-header">
+                <div>
+                    <h2>In-Person Donations</h2>
+                    <p>Review Admin-endorsed donations and record walk-in in-person donations received by Treasurer.</p>
+                </div>
+                <div class="action-buttons">
+                    <a href="{{ url_for('treasurer_cash_entry') }}" class="add-donation-btn" style="font-size: 12px;">
+                        <i>+</i> Record New Donation
+                    </a>
+                </div>
+            </div>
+            
+            <div class="table-section">
+                <div class="table-header">
+                    <h3>Recent In-Person Donations</h3>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ref #</th>
+                                <th>Donor Name</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                                <th>Fundraiser</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in cash_donations %}
+                            <tr>
+                                <td>
+                                    <span class="reference-number" title="{{ donation.don_refnum }}">{{ donation.don_refnum }}</span>
+                                </td>
+                                <td>
+                                    <div class="donor-info">
+                                        <span class="donor-name">{{ donation.don_donorname or 'Anonymous' }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="amount">&#8369;{{ "{:,.2f}".format(donation.don_amount) }}</span>
+                                </td>
+                                <td>
+                                    <span class="payment-type payment-{{ donation.don_paymethod.lower() }}">
+                                        {{ donation.don_paymethod }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if donation.fund_title %}
+                                        <span class="fundraiser-title">{{ donation.fund_title }}</span>
+                                    {% else %}
+                                        <span class="no-fundraiser">General Donation</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="donation-date">
+                                        {{ donation.don_date.strftime('%b %d, %Y') if donation.don_date else 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ donation.don_status.lower() }}">
+                                        {{ donation.don_status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="{{ url_for('treasurer_cash_receipt_by_ref', refnum=donation.don_refnum) }}"
+                                            class="btn btn-sm btn-outline" title="View Receipt">
+                                            View Receipt
+                                        </a>
+                                        {% if donation.don_status == 'Endorsed' %}
+                                        <button type="button" class="btn btn-sm btn-primary" value="{{ donation.don_id }}" data-refnum="{{ donation.don_refnum }}" onclick="confirmCashReceipt(this)">
+                                            Confirm Receipt
+                                        </button>
+                                        {% elif donation.don_status == 'Pending' %}
+                                        <span class="endorsement-state">Waiting for Admin endorsement</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="no-data">
+                                    <div class="no-data-content">
+                                        <p>No in-person donations recorded yet</p>
+                                        <a href="{{ url_for('treasurer_cash_entry') }}" class="btn btn-primary">
+                                            <i class="icon">+</i> Record First Donation
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span class="pagination-text">
+                            Showing {{ [pagination.per_page, pagination.total - ((pagination.page - 1) * pagination.per_page)] | min if pagination.total > 0 else 0 }}
+                            out of {{ pagination.total }} entries
+                        </span>
+                    </div>
+                    <div class="pagination-controls">
+                        <a href="{{ url_for('treasurer_cash_donations', page=pagination.prev_num) if pagination.has_prev else '#' }}"
+                           class="pagination-btn {{ 'disabled' if not pagination.has_prev else '' }}">
+                            <span>Previous</span>
+                        </a>
+
+                        <div class="pagination-pages">
+                            {% for page_num in range(1, [pagination.total_pages, 3] | min + 1) %}
+                                {% if page_num == pagination.page %}
+                                    <span class="pagination-page active">{{ page_num }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('treasurer_cash_donations', page=page_num) }}" class="pagination-page">{{ page_num }}</a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <a href="{{ url_for('treasurer_cash_donations', page=pagination.total_pages) if pagination.page < pagination.total_pages else '#' }}"
+                           class="pagination-btn {{ 'disabled' if pagination.page >= pagination.total_pages else '' }}">
+                            <span>Last</span>
+                        </a>
+
+                        <a href="{{ url_for('treasurer_cash_donations', page=pagination.next_num) if pagination.has_next else '#' }}"
+                           class="pagination-btn {{ 'disabled' if not pagination.has_next else '' }}">
+                            <span>Next</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <style>
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .section-header h2 {
+            margin: 0;
+            color: #333;
+        }
+
+        .section-header p {
+            margin: 0.5rem 0 0 0;
+            color: #666;
+        }
+
+        .add-donation-btn {
+            background: #916DE8;
+            color: white;
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: background-color 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .add-donation-btn:hover {
+            background: #7c5ae8;
+            color: white;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Satoshi', sans-serif;
+            font-weight: 500;
+            font-size: 11px !important;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #916DE8, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(145, 109, 232, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .table-section {
+            margin-top: 2rem;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .table-header h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 0 0;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-info {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-pages {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pagination-btn,
+        .pagination-page {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 40px;
+            padding: 0.55rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid #dee2e6;
+            background: #fff;
+            color: #495057;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .pagination-btn:hover,
+        .pagination-page:hover {
+            border-color: #916DE8;
+            color: #916DE8;
+            background: #f7f3ff;
+        }
+
+        .pagination-page.active {
+            background: #916DE8;
+            border-color: #916DE8;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .pagination-btn.disabled {
+            pointer-events: none;
+            opacity: 0.45;
+        }
+
+        .pagination-ellipsis {
+            color: #6c757d;
+            padding: 0 0.35rem;
+        }
+
+        .reference-number {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #916DE8;
+            font-size: 11px;
+        }
+
+        .donor-info,
+        .fundraiser-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .donor-name,
+        .fundraiser-title {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .recorded-by,
+        .fundraiser-id {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .amount {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .fundraiser-title {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .no-fundraiser {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .payment-type {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .payment-type.payment-cash {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .payment-type.payment-cheque {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .payment-type.payment-in-kind {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .donation-date {
+            color: #6c757d;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .status-badge.status-paid {
+            background: #d4edda;
+            color: #155724;
+            display: inline-block;
+            font-size: 11px;
+        }
+
+        .status-badge.status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.status-endorsed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-badge.status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .endorsement-state {
+            color: #0c5460;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: normal;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .no-data-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .no-data-content p {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem 0.75rem;
+            border-bottom: 1px solid #f1f3f4;
+            text-align: left;
+            vertical-align: middle;
+        }
+
+        .data-table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: titlecase;
+            letter-spacing: 0.5px;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .data-table th {
+            font-size: 12px !important;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 15%; font-size: 8px; } /* Ref # */
+        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 14%; font-size: 11px; } /* Donor Name */
+        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 10%; font-size: 11px; } /* Amount */
+        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 9%; font-size: 11px; }  /* Type */
+        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 22%; font-size: 11px; } /* Fundraiser */
+        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 10%; font-size: 11px; } /* Date */
+        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 10%; font-size: 11px; } /* Status */
+        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 10%; font-size: 11px; } /* Actions */
+
+        .nav-tab.cash-donations {
+            border-left: 2px solid #ddd !important;
+            padding-left: calc(2.4rem - 2px) !important;
+        }
+
+        .signout-btn {
+            color: #dc3545;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: text-decoration 0.3s ease;
+            margin-left: 1rem;
+        }
+
+        .signout-btn:hover {
+            text-decoration: underline;
+            color: #dc3545;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .add-donation-btn {
+                width: 100%;
+                text-align: center;
+            }
+
+            .data-table {
+                font-size: 0.8rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+        }
+    </style>
+
+    <script>
+        function confirmSignOut() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        }
+
+        function confirmCashReceipt(button) {
+            const rawDonationId = button ? button.value : null;
+            const donationRefnum = button && button.dataset ? (button.dataset.refnum || '').trim() : '';
+            const donationId = (rawDonationId === null || rawDonationId === undefined || rawDonationId === '')
+                ? null
+                : parseInt(rawDonationId, 10);
+
+            if (donationId === null || Number.isNaN(donationId)) {
+                alert('Unable to confirm donation: missing donation ID.');
+                return;
+            }
+
+            if (!confirm('Confirm that the Treasurer has received this endorsed donation?')) {
+                return;
+            }
+
+            if (button) {
+                button.disabled = true;
+                button.dataset.originalText = button.textContent;
+                button.textContent = 'Confirming...';
+            }
+
+            fetch('/api/treasurer/confirm-cash-donation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ donation_id: donationId, don_refnum: donationRefnum })
+            })
+            .then(async (response) => {
+                const rawText = await response.text();
+                let data = {};
+                try {
+                    data = rawText ? JSON.parse(rawText) : {};
+                } catch (_) {
+                    data = { error: rawText || `HTTP ${response.status}` };
+                }
+                if (!response.ok || data.success !== true) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+                return data;
+            })
+            .then(data => {
+                alert(data.message || 'Donation confirmed successfully.');
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error confirming donation:', error);
+                alert('Error: ' + (error.message || 'An error occurred while confirming the donation.'));
+            })
+            .finally(() => {
+                if (button) {
+                    button.disabled = false;
+                    button.textContent = button.dataset.originalText || 'Confirm Receipt';
+                }
+            });
+        }
+    </script>
+</body>
+</html>

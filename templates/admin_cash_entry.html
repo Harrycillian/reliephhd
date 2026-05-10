@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Record In-Person Donation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations active">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <div class="section-header">
+                <div>
+                    <h3>Record In-Person Donation</h3>
+                    <p style="font-size: 13.5px;">Record a physical donation received by Admin before endorsement to Treasurer.</p>
+                </div>
+                <div class="action-buttons">
+                    <a href="{{ url_for('admin_cash_donations') }}" class="btn btn-outline">
+                        <i class="icon">←</i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="form-container">
+                {% if error %}
+                <div class="error-banner">{{ error }}</div>
+                {% endif %}
+                <form method="POST" class="donation-form">
+                    <div class="form-grid">
+                        <!-- Donor Information -->
+                        <div class="form-section">
+                            <h3>Donor Information</h3>
+                            <div class="form-group">
+                                <label for="donor_name">Donor Name</label>
+                                <input type="text" id="donor_name" name="donor_name" 
+                                    placeholder="Enter donor name (optional for anonymous donations)">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="contact_number">Contact Number</label>
+                                <input type="tel" id="contact_number" name="contact_number" 
+                                    placeholder="Enter contact number (optional)" inputmode="numeric" pattern="[0-9]*">
+                            </div>
+                        </div>
+
+                        <!-- Donation Details -->
+                        <div class="form-section">
+                            <h3>Donation Details</h3>
+                            <!-- Amount field is now handled below in cash-cheque-fields for dynamic donation type -->
+                            
+                            <div class="form-group">
+                                <label for="donation_type">Donation Type *</label>
+                                <select id="donation_type" name="donation_type" required onchange="toggleDonationFields()">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="In-Kind">In-Kind (Materials, Goods, etc.)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" id="cash-cheque-fields">
+                                <label for="amount">Amount *</label>
+                                <div class="input-group">
+                                    <span class="input-prefix">₱</span>
+                                    <input type="text" id="amount" name="amount" required autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false"
+                                        placeholder="0" class="amount-input" style="border: none; text-align: right; box-shadow: none; padding-right: 0; font-size: 14px;">
+                                    <span class="input-suffix-fixed">.00</span>
+                                </div>
+                            </div>
+                            <div class="form-group" id="in-kind-fields" style="display:none;">
+                                <label for="in_kind_description">In-Kind Description *</label>
+                                <textarea id="in_kind_description" name="in_kind_description" rows="2" placeholder="Describe the donated items/materials" maxlength="120"></textarea>
+                                <label for="in_kind_quantity">Quantity *</label>
+                                <input type="text" id="in_kind_quantity" name="in_kind_quantity" placeholder="e.g. 10" inputmode="numeric" pattern="[0-9]*">
+                                <!-- <label for="in_kind_estimated_value">Estimated Value (₱)</label>
+                                <input type="text" id="in_kind_estimated_value" name="in_kind_estimated_value" placeholder="Optional: estimated total value" inputmode="numeric" pattern="[0-9]*"> -->
+                            </div>
+                            
+                            <div class="form-group">
+                                <input type="hidden" id="donation_date" name="donation_date">
+                                <input type="hidden" id="donation_time" name="donation_time">
+                            </div>
+                        </div>
+
+                        <!-- Fundraiser Assignment -->
+                        <div class="form-section">
+                            <h3>Fundraiser Assignment</h3>
+                            <div class="form-group">
+                                <label for="fund_id">Assign to Fundraiser</label>
+                                <input type="text" id="fund_id_search" placeholder="Search fundraiser by title" autocomplete="off" list="fundraiser-options-admin">
+                                <input type="hidden" id="fund_id" name="fund_id">
+                                <datalist id="fundraiser-options-admin">
+                                    {% for fundraiser in fundraisers %}
+                                    <option value="{{ fundraiser.fund_title }}" data-fund-id="{{ fundraiser.fund_id }}"></option>
+                                    {% endfor %}
+                                </datalist>
+                                <small class="form-help">Leave blank for general donations</small>
+                            </div>
+                        </div>
+
+                        <div class="form-section full-width">
+                            <h3>Additional Information</h3>
+                            <div class="form-group">
+                                <label for="notes">Notes</label>
+                                <textarea id="notes" name="notes" rows="3" 
+                                        placeholder="Any additional notes about this donation..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-outline" onclick="history.back()">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">Record Donation</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- <div class="info-panel">
+                <div class="info-header">
+                    <i class="icon">ℹ️</i>
+                    <h4>Important Information</h4>
+                </div>
+                <div class="info-content">
+                    <ul>
+                        <li><strong>Reference Number:</strong> A unique reference number will be automatically generated for this donation.</li>
+                        <li><strong>Status:</strong> New entries start as "Pending" (received by Admin) and must be endorsed to Treasurer.</li>
+                        <li><strong>Treasurer Confirmation:</strong> Donation becomes officially recorded only after Treasurer confirms receipt.</li>
+                        <li><strong>Anonymous Donations:</strong> You can leave the donor name blank for anonymous donations.</li>
+                        <li><strong>General Donations:</strong> If no fundraiser is selected, the donation will be recorded as a general platform donation.</li>
+                        <li><strong>Receipt:</strong> A printable receipt will be generated after recording the donation.</li>
+                    </ul>
+                </div>
+            </div> -->
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <style>
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .section-header h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .section-header p {
+            color: #6c757d;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.95rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Satoshi', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #916DE8, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(145, 109, 232, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .form-container {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .error-banner {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border: 1px solid #f5c2c7;
+            border-radius: 8px;
+            background: #fff5f5;
+            color: #842029;
+            font-size: 0.9rem;
+        }
+
+        .donation-form {
+            width: 100%;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-section.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-section h3 {
+            color: #2c3e50;
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 0 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #f1f3f4;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            color: #495057;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            padding: 0.75rem;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            font-family: 'Satoshi', sans-serif;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #916DE8;
+            box-shadow: 0 0 0 3px rgba(145, 109, 232, 0.1);
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        .input-group:focus-within {
+            border-color: #dee2e6;
+            box-shadow: none;
+            background: white;
+        }
+
+        .input-prefix {
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.75rem 0 0.75rem 0.75rem;
+        }
+
+        .input-prefix-number {
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.75rem 0;
+        }
+        .amount-input {
+            border: none;
+            outline: none;
+            padding: 0.75rem 0.5rem;
+            font-family: 'Satoshi', sans-serif;
+            font-size: 0.9rem;
+            background: white;
+            text-align: center;
+            min-width: 60px;
+            flex: 1;
+        }
+
+        #amount,
+        #amount:focus,
+        #amount:active,
+        #amount:hover {
+            background: white !important;
+            box-shadow: none !important;
+        }
+
+        .input-suffix-fixed {
+            color: #6c757d;
+            font-weight: 500;
+            padding: 0.75rem 0.75rem 0.75rem 0;
+        }
+
+        .form-help {
+            color: #6c757d;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #f1f3f4;
+        }
+
+        .info-panel {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .info-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-header h4 {
+            color: #2c3e50;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .info-content ul {
+            margin: 0;
+            padding-left: 1.5rem;
+        }
+
+        .info-content li {
+            color: #495057;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-content strong {
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        #fund_id_search {
+            background-color: #ffffff;
+        }
+
+        @media (max-width: 768px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .form-container {
+                padding: 1.5rem;
+            }
+
+            .form-actions {
+                flex-direction: column;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+
+    <script>
+        // Set today's date as default
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            const now = new Date();
+            const currentTime = now.toTimeString().slice(0, 8);
+            document.getElementById('donation_date').value = today;
+            document.getElementById('donation_time').value = currentTime;
+            toggleDonationFields();
+        });
+
+        // Amount formatting - only allow whole numbers
+        function setupAmountInput() {
+            var amountInput = document.getElementById('amount');
+            if (amountInput) {
+                amountInput.addEventListener('input', function() {
+                    let value = amountInput.value.replace(/[^0-9]/g, '');
+                    amountInput.value = value;
+                });
+            }
+        }
+        setupAmountInput();
+
+        function setupStrictInputFilters() {
+            var contactInput = document.getElementById('contact_number');
+            var quantityInput = document.getElementById('in_kind_quantity');
+            var estimatedInput = document.getElementById('in_kind_estimated_value');
+            var descriptionInput = document.getElementById('in_kind_description');
+
+            [contactInput, quantityInput, estimatedInput].forEach(function(input) {
+                if (!input) {
+                    return;
+                }
+                input.addEventListener('input', function() {
+                    input.value = input.value.replace(/[^0-9]/g, '');
+                });
+            });
+
+            if (descriptionInput) {
+                descriptionInput.addEventListener('input', function() {
+                    descriptionInput.value = descriptionInput.value.replace(/[^A-Za-z0-9 ]/g, '');
+                });
+            }
+        }
+        setupStrictInputFilters();
+
+        function setupFundraiserSearch(searchInputId, hiddenInputId, datalistId) {
+            var searchInput = document.getElementById(searchInputId);
+            var hiddenInput = document.getElementById(hiddenInputId);
+            var datalist = document.getElementById(datalistId);
+            if (!searchInput || !hiddenInput || !datalist) {
+                return;
+            }
+
+            var optionMap = new Map();
+            Array.from(datalist.options).forEach(function(option) {
+                optionMap.set(option.value, option.dataset.fundId || '');
+            });
+
+            function syncHiddenValue() {
+                var fundId = optionMap.get(searchInput.value.trim()) || '';
+                hiddenInput.value = fundId;
+            }
+
+            searchInput.addEventListener('input', syncHiddenValue);
+            searchInput.addEventListener('change', syncHiddenValue);
+
+            document.querySelector('.donation-form').addEventListener('submit', function(e) {
+                syncHiddenValue();
+                if (searchInput.value.trim() && !hiddenInput.value) {
+                    e.preventDefault();
+                    alert('Please select a fundraiser from the suggested list or leave the field blank.');
+                }
+            });
+        }
+
+        // Toggle fields for donation type
+        function toggleDonationFields() {
+            var type = document.getElementById('donation_type').value;
+            var cashCheque = document.getElementById('cash-cheque-fields');
+            var inKind = document.getElementById('in-kind-fields');
+            if (type === 'In-Kind') {
+                cashCheque.style.display = 'none';
+                inKind.style.display = '';
+                // Remove required from amount, add to in-kind fields
+                document.getElementById('amount').removeAttribute('required');
+                document.getElementById('in_kind_description').setAttribute('required', 'required');
+                document.getElementById('in_kind_quantity').setAttribute('required', 'required');
+            } else {
+                cashCheque.style.display = '';
+                inKind.style.display = 'none';
+                document.getElementById('amount').setAttribute('required', 'required');
+                document.getElementById('in_kind_description').removeAttribute('required');
+                document.getElementById('in_kind_quantity').removeAttribute('required');
+            }
+        }
+
+        // Form validation
+        document.querySelector('.donation-form').addEventListener('submit', function(e) {
+            var type = document.getElementById('donation_type').value;
+            var contact = document.getElementById('contact_number').value.trim();
+            if (contact && !/^\d+$/.test(contact)) {
+                e.preventDefault();
+                alert('Contact number must contain numbers only.');
+                return;
+            }
+            if (type === 'In-Kind') {
+                var desc = document.getElementById('in_kind_description').value.trim();
+                var qty = document.getElementById('in_kind_quantity').value.trim();
+                var est = document.getElementById('in_kind_estimated_value').value.trim();
+                if (!desc || !qty) {
+                    e.preventDefault();
+                    alert('Please provide a description and quantity for in-kind donations.');
+                    return;
+                }
+                if (!/^[A-Za-z0-9 ]+$/.test(desc)) {
+                    e.preventDefault();
+                    alert('In-kind description must contain letters, numbers, and spaces only.');
+                    return;
+                }
+                if (!/^\d+$/.test(qty)) {
+                    e.preventDefault();
+                    alert('Quantity must contain numbers only.');
+                    return;
+                }
+                if (est && !/^\d+$/.test(est)) {
+                    e.preventDefault();
+                    alert('Estimated value must contain numbers only.');
+                    return;
+                }
+            } else {
+                var amount = document.getElementById('amount').value;
+                var numAmount = parseFloat(amount);
+                if (!amount || isNaN(numAmount) || numAmount <= 0) {
+                    e.preventDefault();
+                    alert('Please enter a valid amount greater than 0.');
+                    return;
+                }
+                document.getElementById('amount').value = numAmount.toFixed(2);
+            }
+        });
+
+        setupFundraiserSearch('fund_id_search', 'fund_id', 'fundraiser-options-admin');
+    </script>
+</body>
+</html>

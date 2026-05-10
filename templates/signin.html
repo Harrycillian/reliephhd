@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Sign In</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='signin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <a href="javascript:history.back()" class="back-btn">&#8592; Back</a>
+    <div class="container">
+        <a href="{{ url_for('index') }}" class="home">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+        </a>
+        <h2 class="subtitle">Welcome</h2>
+        <p class="description">Sign in to ReliePH or <span><a href="{{ url_for('create_account') }}">sign up</a></span> to continue.</p>
+        
+        <form action="{{ url_for('signin') }}" method="post">
+            <input type="email" id="email" name="email" placeholder="Email" required>
+            <input type="password" id="password" name="password" class="password" minlength="8" maxlength="20" placeholder="Password" required>
+            <div class="forgot">
+                <label class="showpass">
+                    <input type="checkbox">Show password
+                </label>
+                <a href="{{ url_for('forgot') }}" class="forgot-password">Forgot Password?</a>
+            </div>
+
+            {% if error %}
+                <p class="error-message">{{ error }}</p>
+            {% endif %}
+            {% if success %}
+            <div id="success-modal" style="position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:9999;">
+              <div style="background:#fff;border-radius:20px;padding:2.5rem 2rem;max-width:360px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.18);">
+                <div style="font-size:52px;margin-bottom:0.5rem;">&#10003;</div>
+                <h3 style="color:#2c3e50;margin-bottom:0.5rem;font-size:1.2rem;">Account Created!</h3>
+                <p style="color:#555;font-size:0.9rem;margin-bottom:1.5rem;">{{ success }}</p>
+                <button onclick="document.getElementById('success-modal').remove()" style="background:#916DE8;color:#fff;border:none;border-radius:25px;padding:0.65rem 2rem;font-size:0.9rem;font-weight:600;cursor:pointer;">OK</button>
+              </div>
+            </div>
+            {% endif %}
+
+            <button type="submit">Sign in</button>
+            <p class="agreement">By clicking 'Sign in', you agree to ReliePH’s <span><a href="#">terms & conditions</a></span>.</p>
+        </form>
+    </div>
+
+    <script>
+        const showPasswordCheckbox = document.querySelector('.showpass input[type="checkbox"]');
+        const passwordInput = document.getElementById('password');
+
+        showPasswordCheckbox.addEventListener('change', function() {
+            passwordInput.type = this.checked ? 'text' : 'password';
+        });
+
+        const emailInput = document.getElementById('email');
+
+        emailInput.addEventListener('input', function() {
+            if (this.value && !this.value.endsWith('@gmail.com')) {
+                this.style.borderColor = '#dc3545';
+            } else {
+                this.style.borderColor = '';
+            }
+        });
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            if (!emailInput.value.endsWith('@gmail.com')) {
+                e.preventDefault();
+                emailInput.style.borderColor = '#dc3545';
+                emailInput.focus();
+            }
+        });
+    </script>
+</body>
+</html>

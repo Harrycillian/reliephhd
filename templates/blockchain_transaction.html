@@ -1,0 +1,258 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blockchain Transaction Details - ReliePH</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='blockchain_transaction.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <style>
+        .verification-result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .verification-result.valid {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+        
+        .verification-result.invalid {
+            background: #ffe1e1;
+            border: 2px solid #f04b4b;
+        }
+        
+        .verification-result h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .verification-result p {
+            margin: 8px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="blockchain-container" data-eth-to-php="{{ eth_to_php_rate | default('') }}">
+        <button class="back-button" onclick="history.back()">&larr; Back</button>
+        
+        <div class="transaction-header">
+            <div class="transaction-title">
+                Blockchain Transaction Details
+                <!-- <span class="status-badge status-{{ donation.verification_status or 'pending' }}">
+                    {{ donation.verification_status or 'pending' }}
+                </span> -->
+            </div>
+            <div class="transaction-hash" id="txHash">
+                {{ tx_hash }}
+                <button class="copy-button" onclick="copyToClipboard('{{ tx_hash }}')">Copy</button>
+            </div>
+        </div>
+        
+        <div class="transaction-details">
+            <div class="detail-card">
+                <div class="detail-title">Donation Information</div>
+                <div class="detail-value">
+                    <strong>Reference Number:</strong> {{ donation.don_refnum }}<br>
+                    <strong>Amount:</strong> &#8369;{{ "%.2f"|format(donation.don_amount) }}<br>
+                    <strong>Status:</strong> {{ donation.don_status }}<br>
+                    <strong>Date:</strong> {{ donation.don_date.strftime('%Y-%m-%d %H:%M:%S') if donation.don_date else 'N/A' }}
+                </div>
+            </div>
+            
+            <div class="detail-card">
+                <div class="detail-title">Fundraiser Information</div>
+                <div class="detail-value">
+                    <strong>Title:</strong> {{ donation.fund_title or 'N/A' }}<br>
+                    <strong>Donor:</strong> {{ donation.donor_name or 'Anonymous' }}<br>
+                    <strong>Payment Method:</strong> {{ donation.don_paymethod }}<br>
+                    <strong>Receiver:</strong> {{ donation.don_receiver }}
+                </div>
+            </div>
+            
+            <div class="detail-card">
+                <div class="detail-title">Blockchain Information</div>
+                <div class="detail-value">
+                    <strong>Transaction Hash:</strong> {{ donation.blockchain_tx_hash or 'Not recorded' }}<br>
+                    <strong>Block Number:</strong> {{ donation.block_number or 'N/A' }}<br>
+                    <strong>Gas Used:</strong> {{ donation.gas_used or 'N/A' }}<br>
+                </div>
+            </div>
+        </div>
+        
+        <div class="verification-section">
+            <div class="detail-title">Blockchain Verification</div>
+            <div class="detail-value">
+                <p>Verify this transaction on the blockchain to ensure its authenticity and immutability.</p>
+                <button class="verify-button" id="verifyBtn" onclick="verifyTransaction()">
+                    Verify Transaction
+                </button>
+                <div id="verificationResult" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Transaction hash copied to clipboard!');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        function escapeHtml(value) {
+            if (value === null || value === undefined || value === '') {
+                return 'N/A';
+            }
+
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatFieldName(field) {
+            return String(field || '')
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, char => char.toUpperCase());
+        }
+
+        function renderDifferencesTable(differences) {
+            const entries = Object.entries(differences || {});
+            if (!entries.length) {
+                return '';
+            }
+
+            const rows = entries.map(([field, values]) => `
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #f3c7c7; font-weight: 600; color: #8f2d2d;">${escapeHtml(formatFieldName(field))}</td>
+                    <td style="padding: 10px; border: 1px solid #f3c7c7;">${escapeHtml(values.original)}</td>
+                    <td style="padding: 10px; border: 1px solid #f3c7c7; background: #fff5f5;">${escapeHtml(values.tampered)}</td>
+                </tr>
+            `).join('');
+
+            return `
+                <div style="margin-top: 16px;">
+                    <p style="margin-bottom: 10px;"><strong>Detected Differences</strong></p>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+                            <thead>
+                                <tr style="background: #fff1f1;">
+                                    <th style="padding: 10px; border: 1px solid #f3c7c7; text-align: left;">Field</th>
+                                    <th style="padding: 10px; border: 1px solid #f3c7c7; text-align: left;">Original Value</th>
+                                    <th style="padding: 10px; border: 1px solid #f3c7c7; text-align: left;">Tamper Attempt Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function verifyTransaction() {
+            const verifyBtn = document.getElementById('verifyBtn');
+            const resultDiv = document.getElementById('verificationResult');
+            
+            verifyBtn.disabled = true;
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<p>Verifying transaction on blockchain... Please wait.</p>';
+            
+            fetch('/api/blockchain/verify-donation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    transaction_hash: '{{ tx_hash }}',
+                    db_scan: true
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const status = (data.status || '').toLowerCase();
+                const differences = data.differences || {};
+                const hasDifferences = Object.keys(differences).length > 0;
+
+                if (status === 'verified' && data.is_valid) {
+                    resultDiv.className = 'verification-result valid';
+                    resultDiv.innerHTML = `
+                        <h3>✅ Verification Successful</h3>
+                        <p><strong>Status:</strong> Record integrity is clean</p>
+                        <p><strong>Transaction Hash:</strong> {{ tx_hash }}</p>
+                        <p style="margin-top: 10px; font-size: 0.95rem;">No tampered values were detected and the transaction hash matches the original hash.</p>
+                    `;
+                } else {
+                    resultDiv.className = 'verification-result invalid';
+                    resultDiv.innerHTML = `
+                        <h3>Verification Failed: Data has been tampered</h3>
+                        <p><strong>Transaction Hash:</strong> {{ tx_hash }}</p>
+                        <p><strong>Status:</strong> ${escapeHtml(data.message || 'Verification Failed')}</p>
+                        <p><strong>Tamper Flag:</strong> ${Number(data.is_tampered || 0) === 1 ? 'Tampered' : 'Failed verification'}</p>
+                        ${hasDifferences ? renderDifferencesTable(differences) : ''}
+                        ${hasDifferences ? '' : `<p style="margin-top: 12px;">No field-by-field differences were returned, but the record still failed verification.</p>`}
+                    `;
+                }
+            })            .catch(error => {
+                resultDiv.className = 'verification-result invalid';
+                resultDiv.innerHTML = `
+                    <h3>Verification Error</h3>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p style="margin-top: 10px; font-size: 0.9rem; color: #721c24;">
+                        An error occurred while verifying the transaction. Please try again later.
+                    </p>
+                `;
+            })
+            .finally(() => {
+                verifyBtn.disabled = false;
+            });
+        }
+
+        function formatIntegrityIssue(issue) {
+            const text = String(issue || '').trim();
+
+            if (text === 'donations.is_tampered = 1.') {
+                return 'The donation record is marked as tampered.';
+            }
+
+            if (text === 'blockchain_transactions.is_tampered = 1.') {
+                return 'The blockchain transaction record is marked as tampered.';
+            }
+
+            if (text === 'donations.blockchain_tx_hash does not match donations.original_tx_hash.') {
+                return 'The donation transaction hash no longer matches its original stored hash.';
+            }
+
+            if (text === 'blockchain_transactions.blockchain_tx_hash does not match blockchain_transactions.original_tx_hash.') {
+                return 'The blockchain transaction hash no longer matches its original stored hash.';
+            }
+
+            if (text === 'donations.blockchain_tx_hash does not match blockchain_transactions.blockchain_tx_hash.') {
+                return 'The donation hash does not match the blockchain transaction hash.';
+            }
+
+            return text;
+        }
+
+        
+            function formatAmount(amountEth, rate) {
+                if (amountEth === null || amountEth === 'N/A') return 'N/A';
+                const eth = Number(amountEth);
+                if (!isFinite(eth)) return amountEth;
+
+                if (rate && !isNaN(Number(rate))) {
+                    const php = eth * Number(rate);
+                    return `PHP ${php.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} (${eth} ETH)`;
+                }
+
+                return `${eth} ETH`;
+            }
+    </script>
+</body>
+</html>
+

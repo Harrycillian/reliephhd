@@ -1,0 +1,365 @@
+/*********************************************************/
+/************************* FONTS *************************/
+/*********************************************************/
+
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'FuturaMdBT';
+    src: url('fonts/FuturaMdBT-Medium.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/*********************************************************/
+/*********************************************************/
+/*********************************************************/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: url('images/bgg.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; 
+}
+
+.container {
+    max-width: 450px;
+    margin: 3% auto;
+    padding: 2% 3% 3% 3%;
+    background-color: #ffffff;
+    border-radius: 30px;
+    box-shadow: 0 0px 10px 2px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+    width: auto;
+    height: 65px;
+    margin: 15px auto;
+    display: block;
+}
+
+.subtitle {
+    text-align: center;
+    font-family: 'FuturaMdBT', sans-serif;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+}
+.description {
+    text-align: center;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 30px;
+}
+.description a {
+    color: #916DE8;
+    text-decoration: none;
+}
+.description a:hover {
+    text-decoration: underline;
+}
+
+input[type="email"], input[type="text"] {
+    width: 100%;
+    padding: 15px 30px;
+    margin-bottom: 12px;
+    border: 1px solid #888;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+}
+input[type="password"] {
+    width: 100%;
+    padding: 15px 30px;
+    border: 1px solid #888;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+}
+#password {
+    margin-bottom: 10px;
+}
+::placeholder {
+    color: #bbb;
+}
+input[type="email"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border: 1.5pt solid #916DE8;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    background-color: #916DE8;
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+button:hover {
+    background-color: #7a5ccf;
+}
+
+.agreement {
+    text-align: center;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.agreement a {
+    color: #666;
+    text-decoration: underline;
+}
+.agreement a:hover {
+    color: #916DE8;
+}
+
+.password-requirements {
+    margin: 15px 0;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.requirement-title {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.requirements-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.requirement {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
+.requirement:last-child {
+    margin-bottom: 0;
+}
+
+.requirement.valid {
+    color: #28a745;
+}
+
+.checkmark {
+    margin-right: 8px;
+    font-weight: bold;
+    font-size: 14px;
+    min-width: 16px;
+    text-align: center;
+}
+
+.requirement.valid .checkmark {
+    color: #28a745;
+}
+
+.requirement:not(.valid) .checkmark {
+    color: #dc3545;
+}
+
+.error-message {
+    text-align: center;
+    color: #db0c0c;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    margin-bottom: 13px;
+}
+
+.back-btn {
+    position: fixed;
+    top: 20px;
+    left: 40px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #916DE8;
+    text-decoration: none;
+    z-index: 999;
+}
+
+.back-btn:hover {
+    color: #7a5ccf;
+}
+
+/* ID Verification Section */
+.id-verification-section {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.section-title {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 8px;
+}
+
+.section-title::after {
+    content: ' *';
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.section-description {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.form-group select,
+.form-group input[type="text"],
+.form-group input[type="file"] {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 14px;
+    transition: border-color 0.3s ease;
+}
+
+.form-group select:focus,
+.form-group input[type="text"]:focus {
+    outline: none;
+    border-color: #916de8;
+    box-shadow: 0 0 0 2px rgba(145, 109, 232, 0.1);
+}
+
+.file-help {
+    font-family: 'Satoshi', sans-serif;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Show Password Checkbox Styling */
+.showpass {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 10px 0 15px 0;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 14px;
+    color: #666;
+    cursor: pointer;
+    user-select: none;
+}
+
+.showpass input[type="checkbox"] {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+}
+
+.showpass input[type="checkbox"]:hover {
+    border-color: #916de8;
+    box-shadow: 0 0 0 2px rgba(145, 109, 232, 0.1);
+}
+
+.showpass input[type="checkbox"]:checked {
+    background: #916de8;
+    border-color: #916de8;
+}
+
+.showpass input[type="checkbox"]:checked::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.showpass:hover {
+    color: #333;
+}

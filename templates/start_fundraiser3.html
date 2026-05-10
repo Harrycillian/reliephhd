@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Fundraiser</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='start_fundraiser3.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+
+  <div class="container">
+    <div class="left-panel">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/purplehands.png') }}" alt="Logo" class="side-logo">
+      </a>
+      <h1>Tell us how much<br>you’d like to raise</h1><br>
+    </div>
+
+    <div class="right-panel">
+      <div class="top-bar">
+        {% if not session.get('email') %}
+          <a href="#" class="signin-link">Sign In</a>
+        {% else %}
+          <a href="{{ url_for('profile_funds') }}" class="profile-link" style="text-decoration: none; color: #333;">
+            {% set parts = session.get('username').split(' ') %}
+            {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+          </a>
+        {% endif %}
+      </div>
+
+      <div class="middle">
+        <div class="progress-indicator small">
+          <div class="progress-step small completed"><span>1</span></div>
+          <div class="progress-line small active"></div>
+          <div class="progress-step small active"><span>2</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>3</span></div>
+          <div class="progress-line small"></div>
+          <div class="progress-step small"><span>4</span></div>
+        </div>
+        <div class="content">
+          {% if error %}
+            <div class="error-message" style="color: #dc3545; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px; padding: 12px; margin-bottom: 20px; text-align: center;">
+              {{ error }}
+            </div>
+          {% endif %}
+          
+          <form method="POST" action="{{ url_for('start_fundraiser_3') }}">
+            <label for="amount" class="amount-label">Enter amount</label>
+            <div class="amount-input">
+              <span class="currency-symbol">₱</span>
+              <div class="numz">
+                <input type="text" id="amount" name="amount" inputmode="numeric" pattern="[0-9,]*" placeholder="0" maxlength="11" required 
+                      data-min-amount="{{ settings.get('min_goal_amount', 5000) }}" 
+                      data-max-amount="{{ settings.get('max_goal_amount', 10000000) }}"
+                      title="Enter the amount you want to raise. Minimum: ₱{{ '{:,}'.format(settings.get('min_goal_amount', 5000)) }}, Maximum: ₱{{ '{:,}'.format(settings.get('max_goal_amount', 10000000)) }}">
+                <span class="decimal">.00</span>
+              </div>
+              <span class="currency-code">PHP</span>
+            </div>
+            
+            <div class="amount-hint" style="text-align: center; margin-top: 10px; color: #666; font-size: 14px;">
+              Valid range: ₱{{ "{:,}".format(settings.get('min_goal_amount', 5000)) }} - ₱{{ "{:,}".format(settings.get('max_goal_amount', 10000000)) }}
+            </div>
+
+            <div class="bottom-bar">
+              <a href="{{ url_for('start_fundraiser') }}" class="back-btn">←</a>
+              <button type="submit" class="continue-btn">Continue</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const amountInput = document.getElementById('amount');
+
+    amountInput.addEventListener('input', function(e) {
+      let value = this.value.replace(/[^0-9]/g, '');
+      if (value) {
+        value = parseInt(value, 10).toLocaleString('en-US');
+      }
+      this.value = value;
+    });
+
+    const MIN_AMOUNT = parseInt(document.getElementById('amount').dataset.minAmount || '5000');
+    const MAX_AMOUNT = parseInt(document.getElementById('amount').dataset.maxAmount || '10000000');
+    
+    const form = amountInput.form;
+    if (form) {
+      form.addEventListener('submit', function(e) {
+        amountInput.value = amountInput.value.replace(/,/g, '');
+        const amountValue = parseInt(amountInput.value, 10);
+        
+        if (isNaN(amountValue)) {
+          e.preventDefault();
+          alert('Please enter a valid amount.');
+          amountInput.value = '';
+          return;
+        }
+        
+        if (amountValue < MIN_AMOUNT) {
+          e.preventDefault();
+          alert('Minimum amount is ₱' + MIN_AMOUNT.toLocaleString('en-US') + '.00. Please enter a valid amount.');
+          amountInput.value = amountValue ? amountValue.toLocaleString('en-US') : '';
+          return;
+        }
+        
+        if (amountValue > MAX_AMOUNT) {
+          e.preventDefault();
+          alert('Maximum amount is ₱' + MAX_AMOUNT.toLocaleString('en-US') + '.00. Please enter a valid amount.');
+          amountInput.value = amountValue ? amountValue.toLocaleString('en-US') : '';
+          return;
+        }
+      });
+    }
+  });
+  </script>
+
+</body>
+</html>

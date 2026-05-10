@@ -1,0 +1,226 @@
+/*********************************************************/
+/************************* FONTS *************************/
+/*********************************************************/
+
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Regular.otf') format('opentype');
+    font-weight: 400;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Medium.otf') format('opentype');
+    font-weight: 500;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Bold.otf') format('opentype');
+    font-weight: 700;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Satoshi';
+    src: url('fonts/Satoshi-Black.otf') format('opentype');
+    font-weight: 900;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'FuturaMdBT';
+    src: url('fonts/FuturaMdBT-Medium.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+/*********************************************************/
+/*********************************************************/
+/*********************************************************/
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: url('images/bgg.png') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh; 
+}
+
+.container {
+    max-width: 450px;
+    margin: 0 auto;
+    padding: 2% 3% 3% 3%;
+    background-color: #ffffff;
+    border-radius: 30px;
+    box-shadow: 0 0px 10px 2px rgba(0, 0, 0, 0.1);
+}
+
+.logo {
+    width: auto;
+    height: 65px;
+    margin: 15px auto;
+    display: block;
+}
+
+.subtitle {
+    text-align: center;
+    font-family: 'FuturaMdBT', sans-serif;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 15px;
+}
+.description {
+    text-align: center;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 30px;
+}
+.description a {
+    color: #916DE8;
+    text-decoration: none;
+}
+.description a:hover {
+    text-decoration: underline;
+}
+
+input[type="email"] {
+    width: 100%;
+    padding: 15px 30px;
+    margin-bottom: 15px;
+    border: 1px solid #888;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+}
+.password {
+    width: 100%;
+    padding: 15px 30px;
+    margin-bottom: 10px;
+    border: 1px solid #888;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+}
+.password::placeholder {
+    color: #bbb;
+}
+input[type="email"]:focus,
+.password:focus {
+    outline: none;
+    border: 1.5pt solid #916DE8;
+}
+
+.forgot {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: space-between;
+}
+.showpass {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 450;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 20px;
+    text-decoration: none;
+    cursor: pointer;
+}
+input[type="checkbox"] {
+    vertical-align: middle;
+    margin-right: 8px;
+    cursor: pointer;
+}
+.forgot-password {
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 450;
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 20px;
+    text-decoration: none;
+}
+.forgot-password:hover {
+    text-decoration: underline;
+}
+
+button {
+    width: 100%;
+    padding: 15px;
+    background-color: #916DE8;
+    color: #fff;
+    border: none;
+    border-radius: 30px;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 500;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+button:hover {
+    background-color: #7a5ccf;
+}
+
+.agreement {
+    text-align: center;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    color: #666;
+    margin-top: 10px;
+}
+
+.agreement a {
+    color: #666;
+    text-decoration: underline;
+}
+.agreement a:hover {
+    color: #916DE8;
+}
+
+.error-message {
+    text-align: center;
+    color: #db0c0c;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    margin-bottom: 13px;
+}
+
+.success-message {
+    text-align: center;
+    color: #28a745;
+    font-family: 'Satoshi', sans-serif;
+    font-weight: 400;
+    font-size: 12px;
+    margin-bottom: 13px;
+}
+
+.back-btn {
+    position: fixed;
+    top: 20px;
+    left: 40px;
+    font-family: 'Satoshi', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: #916DE8;
+    text-decoration: none;
+    z-index: 999;
+}
+
+.back-btn:hover {
+    color: #7a5ccf;
+}

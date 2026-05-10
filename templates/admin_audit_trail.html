@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - Audit Trail</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='audit_trail.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab active">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="audit-section">
+        <div class="audit-card">
+            <div class="audit-header">
+                <h2>Audit Trail</h2>
+                <!-- <p>Review immutable activity logs for accountability and operational transparency.</p> -->
+            </div>
+
+            <div class="audit-filters">
+                <div class="audit-filter-group">
+                    <label for="actionFilter">Action</label>
+                    <input type="text" id="actionFilter" placeholder="e.g. USER_UPDATED">
+                </div>
+                <div class="audit-filter-group">
+                    <label for="entityFilter">Entity Type</label>
+                    <input type="text" id="entityFilter" placeholder="e.g. donation">
+                </div>
+                <div class="audit-filter-group">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All</option>
+                        <option value="SUCCESS">Success</option>
+                        <option value="FAILED">Failed</option>
+                    </select>
+                </div>
+                <div class="audit-filter-group">
+                    <label for="actorFilter">Actor User ID</label>
+                    <input type="number" id="actorFilter" min="1" placeholder="Any">
+                </div>
+                <div class="audit-filter-group">
+                    <label for="limitFilter">Rows</label>
+                    <select id="limitFilter">
+                        <option value="25" selected>25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="200">200</option>
+                        <option value="500">500</option>
+                    </select>
+                </div>
+                <div class="audit-filter-actions">
+                    <button class="audit-btn primary" id="applyFilters">Apply</button>
+                    <button class="audit-btn secondary" id="clearFilters">Clear</button>
+                </div>
+            </div>
+
+            <div class="audit-status" id="auditStatus">Loading audit logs...</div>
+
+            <div class="audit-pagination">
+                <button type="button" class="audit-btn secondary" id="prevPage">Previous</button>
+                <span class="audit-page-info" id="pageInfo">Page 1 of 1</span>
+                <button type="button" class="audit-btn secondary" id="nextPage">Next</button>
+            </div>
+
+            <div class="audit-table-wrap">
+                <table class="audit-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Actor</th>
+                            <th>Role</th>
+                            <th>Action</th>
+                            <th>Entity</th>
+                            <th>Status</th>
+                            <th>Reason</th>
+                            <th>Hash</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="auditTableBody">
+                        <tr>
+                            <td colspan="9" class="audit-empty">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <div class="audit-modal" id="auditModal">
+        <div class="audit-modal-content">
+            <div class="audit-modal-top">
+                <h3 id="auditModalTitle">Audit Entry</h3>
+                <button class="audit-close" id="closeModal">Close</button>
+            </div>
+            <div class="audit-json-grid">
+                <div class="audit-json-card">
+                    <h4>Before Data</h4>
+                    <pre id="beforeJson">None</pre>
+                </div>
+                <div class="audit-json-card">
+                    <h4>After Data</h4>
+                    <pre id="afterJson">None</pre>
+                </div>
+                <div class="audit-json-card">
+                    <h4>Metadata</h4>
+                    <pre id="metadataJson">None</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        const elements = {
+            actionFilter: document.getElementById('actionFilter'),
+            entityFilter: document.getElementById('entityFilter'),
+            statusFilter: document.getElementById('statusFilter'),
+            actorFilter: document.getElementById('actorFilter'),
+            limitFilter: document.getElementById('limitFilter'),
+            applyFilters: document.getElementById('applyFilters'),
+            clearFilters: document.getElementById('clearFilters'),
+            prevPage: document.getElementById('prevPage'),
+            nextPage: document.getElementById('nextPage'),
+            pageInfo: document.getElementById('pageInfo'),
+            status: document.getElementById('auditStatus'),
+            tbody: document.getElementById('auditTableBody'),
+            modal: document.getElementById('auditModal'),
+            modalTitle: document.getElementById('auditModalTitle'),
+            beforeJson: document.getElementById('beforeJson'),
+            afterJson: document.getElementById('afterJson'),
+            metadataJson: document.getElementById('metadataJson'),
+            closeModal: document.getElementById('closeModal')
+        };
+
+        const logsById = new Map();
+        let currentPage = 1;
+        let totalPages = 1;
+
+        function buildQuery() {
+            const params = new URLSearchParams();
+            params.set('limit', elements.limitFilter.value || '25');
+            params.set('page', String(currentPage));
+            if (elements.actionFilter.value.trim()) params.set('action', elements.actionFilter.value.trim());
+            if (elements.entityFilter.value.trim()) params.set('entity_type', elements.entityFilter.value.trim());
+            if (elements.statusFilter.value) params.set('status', elements.statusFilter.value);
+            if (elements.actorFilter.value) params.set('actor_user_id', elements.actorFilter.value);
+            return params.toString();
+        }
+
+        function shortHash(value) {
+            if (!value) return 'N/A';
+            return value.length > 20 ? value.slice(0, 20) + '...' : value;
+        }
+
+        function formatTime(value) {
+            if (!value) return 'N/A';
+            const dt = new Date(value);
+            if (Number.isNaN(dt.getTime())) return value;
+            return dt.toLocaleString();
+        }
+
+        function parseJsonField(value) {
+            if (value === null || value === undefined || value === '') return 'None';
+            if (typeof value === 'object') return JSON.stringify(value, null, 2);
+            try {
+                return JSON.stringify(JSON.parse(value), null, 2);
+            } catch (error) {
+                return String(value);
+            }
+        }
+
+        function statusClass(status) {
+            if (status === 'SUCCESS') return 'success';
+            if (status === 'FAILED') return 'failed';
+            return 'other';
+        }
+
+        function clearTable() {
+            while (elements.tbody.firstChild) {
+                elements.tbody.removeChild(elements.tbody.firstChild);
+            }
+        }
+
+        function updatePagination(meta) {
+            currentPage = meta.page || 1;
+            totalPages = meta.total_pages || 1;
+            elements.pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+            elements.prevPage.disabled = !meta.has_prev;
+            elements.nextPage.disabled = !meta.has_next;
+        }
+
+        function renderRows(logs) {
+            clearTable();
+
+            if (!logs.length) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 9;
+                cell.className = 'audit-empty';
+                cell.textContent = 'No audit logs matched your filter.';
+                row.appendChild(cell);
+                elements.tbody.appendChild(row);
+                return;
+            }
+
+            logs.forEach((log) => {
+                logsById.set(String(log.audit_id), log);
+                const row = document.createElement('tr');
+
+                const actorLabel = log.actor_email || (log.actor_user_id ? `User #${log.actor_user_id}` : 'System');
+                const entityLabel = `${log.entity_type || 'N/A'}${log.entity_id ? ` #${log.entity_id}` : ''}`;
+                const reasonLabel = log.reason || '-';
+
+                [
+                    formatTime(log.event_time),
+                    actorLabel,
+                    log.actor_role || 'N/A',
+                    log.action || 'N/A',
+                    entityLabel
+                ].forEach((value) => {
+                    const td = document.createElement('td');
+                    td.textContent = value;
+                    row.appendChild(td);
+                });
+
+                const statusTd = document.createElement('td');
+                const statusPill = document.createElement('span');
+                statusPill.className = `audit-pill ${statusClass(log.status)}`;
+                statusPill.textContent = log.status || 'N/A';
+                statusTd.appendChild(statusPill);
+                row.appendChild(statusTd);
+
+                const reasonTd = document.createElement('td');
+                reasonTd.textContent = reasonLabel;
+                row.appendChild(reasonTd);
+
+                const hashTd = document.createElement('td');
+                const hashLabel = document.createElement('div');
+                hashLabel.className = 'audit-mini';
+                hashLabel.textContent = shortHash(log.entry_hash);
+                hashTd.appendChild(hashLabel);
+                row.appendChild(hashTd);
+
+                const detailTd = document.createElement('td');
+                const detailBtn = document.createElement('button');
+                detailBtn.type = 'button';
+                detailBtn.className = 'audit-link-btn';
+                detailBtn.textContent = 'View';
+                detailBtn.dataset.auditId = log.audit_id;
+                detailBtn.addEventListener('click', () => openModal(log.audit_id));
+                detailTd.appendChild(detailBtn);
+                row.appendChild(detailTd);
+
+                elements.tbody.appendChild(row);
+            });
+        }
+
+        function openModal(auditId) {
+            const log = logsById.get(String(auditId));
+            if (!log) return;
+            elements.modalTitle.textContent = `Audit #${log.audit_id} • ${log.action || 'N/A'}`;
+            elements.beforeJson.textContent = parseJsonField(log.before_data);
+            elements.afterJson.textContent = parseJsonField(log.after_data);
+            elements.metadataJson.textContent = parseJsonField(log.metadata);
+            elements.modal.classList.add('open');
+        }
+
+        function closeModal() {
+            elements.modal.classList.remove('open');
+        }
+
+        async function loadLogs() {
+            try {
+                elements.status.textContent = 'Loading audit logs...';
+                const response = await fetch(`/api/audit-trail?${buildQuery()}`);
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Unable to fetch audit logs.');
+                }
+
+                renderRows(data.logs || []);
+                updatePagination(data);
+                const startEntry = data.total ? ((data.page - 1) * data.per_page) + 1 : 0;
+                const endEntry = data.total ? startEntry + (data.count || 0) - 1 : 0;
+                elements.status.textContent = `Showing ${startEntry}-${endEntry} of ${data.total || 0} entries.`;
+            } catch (error) {
+                clearTable();
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 9;
+                cell.className = 'audit-empty';
+                cell.textContent = `Failed to load logs: ${error.message}`;
+                row.appendChild(cell);
+                elements.tbody.appendChild(row);
+                elements.status.textContent = 'Error while loading audit logs.';
+                updatePagination({ page: 1, total_pages: 1, has_prev: false, has_next: false });
+            }
+        }
+
+        function clearFilters() {
+            elements.actionFilter.value = '';
+            elements.entityFilter.value = '';
+            elements.statusFilter.value = '';
+            elements.actorFilter.value = '';
+            elements.limitFilter.value = '25';
+            currentPage = 1;
+            loadLogs();
+        }
+
+        elements.applyFilters.addEventListener('click', () => {
+            currentPage = 1;
+            loadLogs();
+        });
+        elements.clearFilters.addEventListener('click', clearFilters);
+        elements.prevPage.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage -= 1;
+                loadLogs();
+            }
+        });
+        elements.nextPage.addEventListener('click', () => {
+            if (currentPage < totalPages) {
+                currentPage += 1;
+                loadLogs();
+            }
+        });
+        elements.closeModal.addEventListener('click', closeModal);
+        elements.modal.addEventListener('click', (event) => {
+            if (event.target === elements.modal) closeModal();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closeModal();
+        });
+
+        loadLogs();
+    </script>
+</body>
+</html>

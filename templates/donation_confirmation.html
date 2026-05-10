@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ReliePH | Donation Confirmation</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='donation_confirmation.css') }}">
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  <header class="navbar confirmation-navbar">
+    <div class="nav-left">
+      <a href="{{ url_for('index') }}" class="back-btn">&#8592; Back to Home</a>
+    </div>
+    <div class="nav-center">
+      <a href="{{ url_for('index') }}">
+        <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo" />
+      </a>
+    </div>
+    <div class="nav-right"></div>
+  </header>
+
+  <main class="confirmation-container">
+    <div class="confirmation-card">
+      <div class="success-icon">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" fill="#4CAF50"/>
+          <path d="M9 12l2 2 4-4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      
+      <h1 class="confirmation-title">Donation Successful!</h1>
+      <p class="confirmation-subtitle">Thank you for your generous contribution</p>
+
+      <div class="donation-details">
+        <div class="detail-row">
+          <span class="detail-label">Fundraiser:</span>
+          <span class="detail-value">{{ fundraiser.fund_title }}</span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Amount:</span>
+          <span class="detail-value amount">₱{{ "{:,.2f}".format(donation.don_amount) }}</span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Payment Method:</span>
+          <span class="detail-value">{{ donation.don_paymethod }}</span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Reference Number:</span>
+          <span class="detail-value reference" id="ref-number" onclick="copyToClipboard()" style="cursor: pointer;" title="Click to copy">
+            {{ donation.don_refnum }}
+          </span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Status:</span>
+          <span class="detail-value status {{ donation.don_status.lower() }}">
+            {% if donation.don_status == 'Paid' %}
+              Paid
+            {% elif donation.don_status == 'Pending' %}
+              Pending
+            {% elif donation.don_status == 'Failed' %}
+              Failed
+            {% else %}
+              {{ donation.don_status }}
+            {% endif %}
+          </span>
+        </div>
+        
+        <div class="detail-row">
+          <span class="detail-label">Date:</span>
+          <span class="detail-value">{{ donation.don_date.strftime('%B %d, %Y at %I:%M %p') if donation.don_date else 'N/A' }}</span>
+        </div>
+      </div>
+
+      <div class="impact-message">
+        <h3>Your Impact</h3>
+        <p>Your donation of <strong>₱{{ "{:,.2f}".format(donation.don_amount) }}</strong> will help {{ fundraiser.fund_beneficiary or 'the beneficiaries' }} and make a real difference in their lives.</p>
+        <p>Every contribution, no matter the size, brings us closer to reaching the goal of <strong>₱{{ "{:,.2f}".format(fundraiser.fund_goalamount) }}</strong>.</p>
+      </div>
+
+      <div class="receipt-actions">
+        <button class="btn btn-receipt" onclick="downloadReceipt()">&#8595; Save Receipt</button>
+      </div>
+
+      <div class="action-buttons">
+        <a href="{{ url_for('track_donation_by_ref', donation_ref=donation.don_refnum) }}" class="btn btn-secondary">
+          Track This Donation
+        </a>
+        <a href="{{ url_for('view_fundraiser', fundraiser_id=fundraiser.fund_id) }}" class="btn btn-primary">
+          View Fundraiser
+        </a>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">
+          Browse More Campaigns
+        </a>
+      </div>
+
+      <div class="social-share">
+        <h4>Share Your Generosity</h4>
+        <p>Help spread the word about this important cause</p>
+        <div class="share-buttons">
+          <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url }}" target="_blank" class="share-btn facebook">
+            <img src="{{ url_for('static', filename='images/fb.png') }}" alt="Facebook">
+            Share on Facebook
+          </a>
+          <a href="https://twitter.com/intent/tweet?text=I just donated to {{ fundraiser.fund_title }} on ReliePH!&url={{ request.url }}" target="_blank" class="share-btn twitter">
+            <img src="{{ url_for('static', filename='images/twitter.png') }}" alt="Twitter">
+            Share on X
+          </a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>&copy; 2025 ReliePH. All rights reserved.</p>
+  </footer>
+
+  <script>
+    const fundraiserId = "{{ fundraiser.fund_id }}";
+    const donationRef = "{{ donation.don_refnum }}";
+    const donationCompletedKey = `relieph:donation-completed:${fundraiserId}`;
+
+    try {
+      sessionStorage.setItem(donationCompletedKey, JSON.stringify({
+        ref: donationRef,
+        url: window.location.href,
+        completedAt: Date.now()
+      }));
+      history.replaceState(
+        { page: 'donation-confirmation', fundraiserId: fundraiserId, donationRef: donationRef },
+        document.title,
+        window.location.href
+      );
+    } catch (error) {
+      console.warn('Unable to store donation confirmation state:', error);
+    }
+
+    function downloadReceipt() {
+      const btn = document.querySelector('.btn-receipt');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Generating...';
+      btn.disabled = true;
+
+      const rows = [
+        ['Fundraiser: ', ' {{ fundraiser.fund_title }}'],
+        ['Amount', '\u20b1{{ "{:,.2f}".format(donation.don_amount) }}'],
+        ['Payment Method', '{{ donation.don_paymethod }}'],
+        ['Reference Number', '{{ donation.don_refnum }}'],
+        ['Status', '{{ donation.don_status }}'],
+        ['Date', '{{ donation.don_date.strftime("%B %d, %Y at %I:%M %p") if donation.don_date else "N/A" }}']
+      ];
+
+      const receipt = document.createElement('div');
+      receipt.style.cssText = 'position:absolute;left:-9999px;top:0;width:520px;background:#fff;padding:40px;font-family:Arial,sans-serif;color:#333;box-sizing:border-box;';
+      receipt.innerHTML =
+        '<div style="text-align:center;margin-bottom:24px;">'
+          + '<div style="font-size:28px;font-weight:900;color:#916DE8;">ReliePH</div>'
+          + '<div style="font-size:13px;color:#888;margin-top:4px;">Donation Receipt</div>'
+        + '</div>'
+        + '<div style="text-align:center;margin-bottom:20px;">'
+          + '<div style="font-size:13px;color:#888;margin-top:4px;">Thank you for your generous contribution</div>'
+        + '</div>'
+        + '<div style="background:#f8f9fa;border-radius:12px;padding:20px;margin-bottom:20px;">'
+          + rows.map(function(r) {
+              return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #e9ecef;font-size:13px;">'
+                + '<span style="font-weight:600;color:#495057;">' + r[0] + '</span>'
+                + '<span style="color:#2c3e50;font-weight:500;">' + r[1] + '</span>'
+              + '</div>';
+            }).join('')
+        + '</div>'
+        + '<div style="background:#eee7ff;border-radius:12px;padding:20px;margin-bottom:20px;font-size:13px;line-height:1.6;">'
+          + '<div style="font-weight:700;margin-bottom:8px;">Your Impact</div>'
+          + 'Your donation of <strong>\u20b1{{ "{:,.2f}".format(donation.don_amount) }}</strong> will help {{ fundraiser.fund_beneficiary or "the beneficiaries" }} and make a real difference in their lives.'
+        + '</div>'
+        + '<div style="text-align:center;font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:16px;">Generated by ReliePH</div>';
+
+      document.body.appendChild(receipt);
+
+      html2canvas(receipt, { scale: 2, useCORS: true, backgroundColor: '#ffffff' }).then(function(canvas) {
+        document.body.removeChild(receipt);
+        const link = document.createElement('a');
+        link.download = 'ReliePH_Receipt_{{ donation.don_refnum }}.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }).catch(function() {
+        document.body.removeChild(receipt);
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      });
+    }
+
+    function copyToClipboard() {
+      const refNumber = document.getElementById('ref-number');
+      const text = refNumber.textContent.replace('📋', '').trim();
+      
+      navigator.clipboard.writeText(text).then(function() {
+        // Show feedback
+        const originalText = refNumber.innerHTML;
+        refNumber.innerHTML = 'Copied! ✓';
+        refNumber.style.background = '#d4edda';
+        refNumber.style.color = '#155724';
+        
+        setTimeout(() => {
+          refNumber.innerHTML = originalText;
+          refNumber.style.background = '#e9ecef';
+          refNumber.style.color = '#2c3e50';
+        }, 2000);
+      }).catch(function(err) {
+        console.error('Could not copy text: ', err);
+        alert('Reference number: ' + text);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>ReliePH | Profile</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='profile_dons.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <!-- NAVBAR -->
+    <header class="navbar">
+        <div class="nav-left">
+            <a href="{{ url_for('index') }}">< Back to Home</a>
+        </div>
+    
+        <div class="nav-center">
+            <a href="{{ url_for('index') }}" class="home">
+                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo" class="logo"> 
+            </a>
+        </div>
+    
+        <div class="nav-right">
+            <a href="#" class="" style="color: transparent;">About</a>
+        </div>
+    </header>
+
+    <div class="divide">
+        <div class="leftbar">
+            <form class="sidebar" id="profile-nav-form">
+                <div class="hehe">
+                    <img src="{{ url_for('static', filename='images/profile.png') }}" alt="User Icon">
+                    <p>{{ user.name }}</p>
+                </div>
+                <label>
+                    <input type="radio" name="profile_nav" value="fundraisers">
+                    <span>Fundraisers</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="donations" checked>
+                    <span>Donations</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="billing">
+                    <span>Billing</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="account">
+                    <span>Account</span>
+                </label>
+                <label>
+                    <input type="radio" name="profile_nav" value="signout" class="signout">
+                    <span>Sign Out</span>
+                </label>
+            </form>
+        </div>
+
+        <div class="mainscreen">
+            <h2>My Donations</h2>
+
+            <div class="fundraiser-list">
+                {% if dons %}
+                    {% for don in dons %}
+                        <div class="fundraiser-card">
+                            <img src="{{ url_for('static', filename='images/placeholder_img.png') }}" alt="Fundraiser Image" class="fundraiser-img">
+                            <div class="fundraiser-details">
+                                <h3>{{ don.fund_title }}</h3>
+                                <p class="goal">You donated <strong>₱{{ don.don_amount }}</strong> for this fundraiser!</p>
+                                <p class="date">{{ don.don_date.strftime('%Y/%m/%d %H:%M') if don.don_date else don.don_date }}</p>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="no-donations">No donations yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('profile-nav-form').addEventListener('change', function(e) {
+            const value = e.target.value;
+            if (value === 'fundraisers') {
+                window.location.href = "{{ url_for('profile_funds') }}";
+            } else if (value === 'donations') {
+                window.location.href = "{{ url_for('profile_dons') }}";
+            } else if (value === 'billing') {
+                window.location.href = "{{ url_for('profile_bill') }}";
+            } else if (value === 'account') {
+                window.location.href = "{{ url_for('profile_acc') }}";
+            } else if (value === 'signout') {
+                if (confirm('Are you sure you want to sign out?')) {
+                    window.location.href = "{{ url_for('signout') }}";
+                }
+            }
+        });
+    </script>
+</body>
+</html>

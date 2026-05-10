@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | In-Person Donation Receipt</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <style>
+        @media print {
+            @page {
+                size: 4in 8.07in; /* Japanese Envelope #4 */
+                margin: 0;
+            }
+
+            body {
+                margin: 0;
+                background: white;
+            }
+
+            /* Hide everything by default in print */
+            body * {
+                visibility: hidden;
+            }
+
+            /* Show only the receipt (and its contents) */
+            .receipt-container,
+            .receipt-container * {
+                visibility: visible;
+            }
+
+            /* Hide toolbar/header/nav/footer */
+            .no-print {
+                display: none !important;
+            }
+
+            /* Ensure the receipt is positioned within the printable page */
+            .receipt-container {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                margin: 0 auto;
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            /* Slightly reduce overall font size for the printed receipt */
+            .receipt,
+            .receipt * {
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar no-print">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav no-print">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations active">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <div class="section-header no-print">
+                <div>
+                    <h3>In-Person Donation Receipt</h3>
+                    <p>Receipt and workflow record for the in-person donation.</p>
+                </div>
+                <div class="action-buttons">
+                    {% if is_new_receipt and donation.don_paymethod in ['Cash', 'Cheque', 'In-Kind'] and donation.don_status|lower in ['pending', 'paid'] %}
+                    <button type="button" class="btn btn-success" id="endorseBtn" onclick="endorseToTreasurer({{ donation.don_id }}, '{{ donation.don_refnum }}')">Endorse to Treasurer</button>
+                    {% endif %}
+                    <button onclick="window.print()" class="btn btn-primary"> Print Receipt</button>
+                    <a href="{{ url_for('admin_cash_donations') }}" class="btn btn-outline">
+                        <i class="icon">←</i> Back to List
+                    </a>
+                </div>
+            </div>
+
+            <div class="receipt-container">
+                <div class="receipt">
+                    <div class="receipt-header">
+                        <div class="receipt-logo-section">
+                            <div class="receipt-logo">
+                                <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" alt="ReliePH Logo">
+                            </div>
+                            <div class="receipt-title">
+                                <p class="receipt-type">In-Person Donation Receipt</p>
+                            </div>
+                        </div>
+                        <div class="receipt-number-section">
+                            <div class="receipt-number-box">
+                                <span class="receipt-number-label">Receipt No.</span>
+                                <span class="receipt-number-value">{{ donation.don_refnum }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Receipt Details -->
+                    <div class="receipt-body">
+                        <div class="receipt-section">
+                            <h3 class="section-title">Donation Information</h3>
+                            <div class="receipt-info">
+                                <div class="info-row">
+                                    <span class="label">Date Received:</span>
+                                    <span class="value">{{ donation.don_date.strftime('%B %d, %Y') if donation.don_date else 'N/A' }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Time:</span>
+                                    <span class="value">{{ donation.don_date.strftime('%I:%M %p') if donation.don_date else 'N/A' }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Donor Name:</span>
+                                    <span class="value donor-name">{{ donation.don_donorname or 'Anonymous Donor' }}</span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Payment Method:</span>
+                                    <span class="value payment-method {{ donation.don_paymethod.lower() }}">
+                                        {{ donation.don_paymethod }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="receipt-section">
+                            <h3 class="section-title">Amount Details</h3>
+                            <div class="amount-box">
+                                <div class="amount-label">DONATION AMOUNT</div>
+                                <div class="amount-value">₱{{ "{:,.2f}".format(donation.don_amount) }}</div>
+                                <div class="amount-words">({{ amount_in_words(donation.don_amount) }})</div>
+                            </div>
+                        </div>
+
+                        {% if donation.fund_title %}
+                        <div class="receipt-section">
+                            <h3 class="section-title">Fundraiser Details</h3>
+                            <div class="receipt-info">
+                                <div class="info-row">
+                                    <span class="label">Fundraiser Title:</span>
+                                    <span class="value">{{ donation.fund_title }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <div class="receipt-section">
+                            <h3 class="section-title">Transaction Details</h3>
+                            <div class="receipt-info">
+                                <div class="info-row">
+                                    <span class="label">Status:</span>
+                                    <span class="value status {{ donation.don_status.lower() }}">
+                                        {{ donation.don_status }}
+                                    </span>
+                                </div>
+                                <div class="info-row">
+                                    <span class="label">Recorded By:</span>
+                                    <span class="value">{{ donation.don_receiver or 'Administrator' }}</span>
+                                </div>
+                                {% if donation.don_notes %}
+                                <div class="info-row notes-row">
+                                    <span class="label">Remarks:</span>
+                                    <span class="value notes">{{ donation.don_notes }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Receipt Footer -->
+                        <div class="receipt-footer">
+                            <div class="signature-section">
+                                <div class="signature-box">
+                                    <div class="signature-line"></div>
+                                    <p class="signature-label">Authorized Representative</p>
+                                    <!-- <p class="signature-name">{{ donation.don_receiver or 'Administrator' }}</p> -->
+                                    <!-- <p class="signature-title">ReliePH Platform</p> -->
+                                </div>
+                            </div>
+                            <div class="receipt-notes">
+                                <div class="notes-box">
+                                    <p class="thank-you"><strong>Thank you for your generous donation!</strong></p>
+                                    <p>This receipt serves as official documentation of your contribution to ReliePH Platform.</p>
+                                    <p class="contact-info">For inquiries, please contact: support@relieph.com</p>
+                                    <p class="disclaimer">This is a computer-generated receipt. No signature required for digital records.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer no-print">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <script>
+        async function endorseToTreasurer(donationId, donationRefnum) {
+            const endorseBtn = document.getElementById('endorseBtn');
+            if (!endorseBtn) return;
+
+            endorseBtn.disabled = true;
+            endorseBtn.textContent = 'Endorsing...';
+
+            try {
+                const response = await fetch('/api/admin/endorse-cash-donation', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        donation_id: donationId,
+                        don_refnum: donationRefnum
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Could not endorse this donation.');
+                }
+
+                window.location.href = '{{ url_for("admin_cash_receipt_by_ref", refnum=donation.don_refnum) }}';
+            } catch (error) {
+                alert(error.message || 'Could not endorse this donation.');
+                endorseBtn.disabled = false;
+                endorseBtn.textContent = 'Endorse to Treasurer';
+            }
+        }
+    </script>
+
+    <style>
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .section-header h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .section-header p {
+            color: #6c757d;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.95rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Satoshi', sans-serif;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #916DE8, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(145, 109, 232, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .btn-success {
+            background: #0f9d58;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #0b7a44;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(15, 157, 88, 0.25);
+        }
+
+        .receipt-container {
+            max-width: 450px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .receipt {
+            padding: 2rem 0;
+        }
+
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 0.6rem;
+            padding-bottom: 0.5rem;
+        }
+
+        .receipt-logo-section {
+            margin-bottom: 0.75rem;
+        }
+
+        .receipt-logo img {
+            height: 35px;
+            margin-bottom: 0.3rem;
+        }
+
+        .receipt-number-section {
+            margin-top: 0.3rem;
+        }
+
+        .receipt-number-box {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 3px;
+        }
+
+        .receipt-number-label {
+            display: block;
+            color: #000;
+            font-size: 0.5rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            margin-bottom: 0.15rem;
+        }
+
+        .receipt-number-value {
+            display: block;
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 700;
+        }
+
+        .receipt-title h1 {
+            color: #000;
+            font-size: 1rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem 0;
+        }
+
+        .receipt-title p {
+            color: #000;
+            font-size: 0.6rem;
+            margin: 0;
+        }
+
+        .receipt-body {
+            margin-bottom: 0.6rem;
+        }
+
+        .receipt-section {
+            margin-bottom: 0.6rem;
+        }
+
+        .section-title {
+            color: #000;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            padding-bottom: 0.2rem;
+            border-bottom: 1px solid #000;
+        }
+
+        .amount-box {
+            text-align: center;
+            padding: 0.5rem;
+            background: transparent;
+            border-radius: 3px;
+        }
+
+        .amount-label {
+            color: #000;
+            font-size: 0.55rem;
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .amount-value {
+            color: #000;
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+        }
+
+        .amount-words {
+            color: #000;
+            font-size: 0.55rem;
+            font-style: normal;
+            margin-top: 0.2rem;
+        }
+
+        .receipt-info {
+            margin-bottom: 1rem;
+        }
+
+        .info-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            color: #000;
+            font-weight: 500;
+            font-size: 0.6rem;
+        }
+
+        .value {
+            color: #000;
+            font-weight: 600;
+            font-size: 0.6rem;
+        }
+
+        .payment-method {
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.55rem;
+            font-weight: 500;
+            text-transform: titlecase;
+            color: #000;
+            background: transparent;
+        }
+
+        .payment-method.cash {
+            background: transparent;
+            color: #000;
+        }
+
+        .payment-method.cheque {
+            background: transparent;
+            color: #000;
+        }
+
+        .amount {
+            color: #000;
+            font-size: 1rem;
+        }
+
+        .status {
+            padding: 0.1rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.55rem;
+            font-weight: 500;
+            text-transform: titlecase;
+            color: #000;
+            background: transparent;
+        }
+
+        .status.paid {
+            background: transparent;
+            color: #000;
+        }
+
+        .status.pending {
+            background: transparent;
+            color: #000;
+        }
+
+        .status.endorsed {
+            background: transparent;
+            color: #000;
+        }
+
+        .status.failed {
+            background: transparent;
+            color: #000;
+        }
+
+        .receipt-footer {
+            border-top: 1px solid #000;
+            padding-top: 0.6rem;
+            margin-top: 0.6rem;
+        }
+
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .signature-box {
+            flex: 1;
+            text-align: center;
+        }
+
+        .signature-line {
+            width: 200px;
+            height: 1px;
+            background: #000;
+            margin: 0 auto 0.5rem auto;
+        }
+
+        .signature-label {
+            color: #000;
+            font-size: 0.55rem;
+            font-weight: 500;
+            margin-bottom: 0.2rem;
+        }
+
+        .signature-name {
+            color: #000;
+            font-size: 0.6rem;
+            font-weight: 600;
+            margin: 0.2rem 0;
+        }
+
+        .signature-title {
+            color: #000;
+            font-size: 0.5rem;
+            margin: 0;
+        }
+
+        .receipt-notes {
+            text-align: center;
+            color: #000;
+            font-size: 0.5rem;
+            line-height: 1.3;
+            margin-top: 0.5rem;
+        }
+
+        .receipt-notes p {
+            margin: 0.2rem 0;
+        }
+
+        .receipt-notes strong {
+            color: #000;
+        }
+
+        @media (max-width: 768px) {
+            .receipt-container {
+                margin: 0 1rem;
+            }
+
+            .receipt {
+                padding: 1.5rem;
+            }
+
+            .info-row {
+                flex-direction: row;
+                align-items: flex-start;
+                gap: 0.25rem;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+        }
+    </style>
+
+    <script>
+        // Auto-print when page loads (optional)
+        // window.onload = function() {
+        //     window.print();
+        // }
+    </script>
+</body>
+</html>

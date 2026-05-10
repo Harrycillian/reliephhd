@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Financial Reports</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='treasurer.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Financial Reports</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+            <a href="#" class="signout-btn" onclick="confirmSignOut()">Sign Out</a>
+        </div>
+    </header>
+
+    <nav class="treasurer-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('treasurer') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('treasurer_reports') }}" class="nav-tab active">Financial Reports</a></li>
+                <li><a href="{{ url_for('treasurer_analytics') }}" class="nav-tab">Analytics</a></li>
+                <li><a href="{{ url_for('treasurer_donations') }}" class="nav-tab">Donations</a></li>
+                <li><a href="{{ url_for('treasurer_cash_donations') }}" class="nav-tab cash-donations">In-Person Donations</a></li>
+                <li><a href="{{ url_for('treasurer_audit_trail') }}" class="nav-tab">Fund Management</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain Records</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <h2>Financial Reports</h2>
+            <p>Detailed financial analysis and reporting.</p>
+            <div class="print-report-header">
+                <h1>ReliePH Financial Report</h1>
+                <p>Report period: {{ start_date }} to {{ end_date }}</p>
+                <p>Generated on: <span id="printGeneratedAt"></span></p>
+            </div>
+            
+            <!-- Date Range Filter -->
+            <div class="filter-section">
+                <form method="GET" class="date-filter-form" id="date-range-filter">
+                    <div class="filter-group">
+                        <label for="start_date">Start Date:</label>
+                        <input type="date" id="start_date" name="start_date" value="{{ start_date }}" required>
+                    </div>
+                    <div class="filter-group">
+                        <label for="end_date">End Date:</label>
+                        <input type="date" id="end_date" name="end_date" value="{{ end_date }}" required>
+                    </div>
+                    <button type="submit" class="filter-btn">Generate Report</button>
+                    <button type="button" class="print-report-btn" onclick="printReport()">Print Report</button>
+                </form>
+            </div>
+
+            <!-- Financial Summary -->
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <h3>Total Revenue</h3>
+                    <div class="amount">₱{{ "{:,.2f}".format(summary.total_revenue) }}</div>
+                    <p class="subtitle">Successfully Processed</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Pending Amount</h3>
+                    <div class="amount" style="color: #FFA500;">₱{{ "{:,.2f}".format(summary.pending_amount) }}</div>
+                    <p class="subtitle">Awaiting Processing</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Failed Amount</h3>
+                    <div class="amount" style="color: #FD7676;">₱{{ "{:,.2f}".format(summary.failed_amount) }}</div>
+                    <p class="subtitle">Failed Transactions</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Total Transactions</h3>
+                    <div class="amount">{{ summary.total_transactions }}</div>
+                    <p class="subtitle">All Transactions</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Unique Donors</h3>
+                    <div class="amount">{{ summary.unique_donors }}</div>
+                    <p class="subtitle">Individual Donors</p>
+                </div>
+            </div>
+
+            <!-- Daily Revenue Chart -->
+            <div class="chart-container">
+                <h3>Daily Revenue Breakdown</h3>
+                <canvas id="dailyRevenueChart"></canvas>
+            </div>
+
+            <!-- Fundraiser Performance Table -->
+            <div class="data-table-container">
+                <h3>Fundraiser Performance</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Fundraiser ID</th>
+                                <th>Title</th>
+                                <th>Goal Amount</th>
+                                <th>Amount Raised</th>
+                                <th>Completion Rate</th>
+                                <th>Donation Count</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for fundraiser in fundraiser_performance %}
+                            <tr>
+                                <td>{{ fundraiser.fund_id }}</td>
+                                <td>{{ fundraiser.fund_title[:40] }}{% if fundraiser.fund_title|length > 40 %}...{% endif %}</td>
+                                <td>₱{{ "{:,.2f}".format(fundraiser.fund_goalamount) }}</td>
+                                <td>₱{{ "{:,.2f}".format(fundraiser.total_raised) }}</td>
+                                <td>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" data-width="{{ fundraiser.completion_rate }}"></div>
+                                        <span class="progress-text">{{ "{:.1f}".format(fundraiser.completion_rate) }}%</span>
+                                    </div>
+                                </td>
+                                <td>{{ fundraiser.donation_count }}</td>
+                                <td>
+                                    <span class="status-badge status-{{ fundraiser.fund_status.lower() }}">
+                                        {{ fundraiser.fund_status }}
+                                    </span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Daily Breakdown Table -->
+            <div class="data-table-container">
+                <h3>Daily Transaction Breakdown</h3>
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Revenue</th>
+                                <th>Transaction Count</th>
+                                <th>Average Donation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for day in daily_breakdown %}
+                            <tr>
+                                <td>{{ day.date.strftime('%Y-%m-%d') if day.date else 'N/A' }}</td>
+                                <td>₱{{ "{:,.2f}".format(day.daily_revenue) }}</td>
+                                <td>{{ day.transaction_count }}</td>
+                                <td>₱{{ "{:,.2f}".format(day.daily_revenue / day.transaction_count) if day.transaction_count > 0 else '0.00' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <!-- Data for JavaScript -->
+    <script type="application/json" id="daily-breakdown-data">{{ daily_breakdown | tojson }}</script>
+
+    <script>
+        Chart.defaults.font.family = 'Satoshi, sans-serif';
+        Chart.defaults.color = '#6c757d';
+
+        // Daily Revenue Chart
+        const dailyBreakdown = JSON.parse(document.getElementById('daily-breakdown-data').textContent);
+        const dailyLabels = dailyBreakdown.map(item => {
+            const date = new Date(item.date);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }).reverse();
+        const dailyData = dailyBreakdown.map(item => parseFloat(item.daily_revenue)).reverse();
+
+        const dailyRevenueChart = new Chart(document.getElementById('dailyRevenueChart'), {
+            type: 'bar',
+            data: {
+                labels: dailyLabels,
+                datasets: [{
+                    label: 'Daily Revenue (₱)',
+                    data: dailyData,
+                    backgroundColor: 'rgba(145, 109, 232, 0.8)',
+                    borderColor: '#916DE8',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return '₱' + value.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Set progress bar widths from data attributes
+        document.addEventListener('DOMContentLoaded', function() {
+            const generatedAt = document.getElementById('printGeneratedAt');
+            if (generatedAt) {
+                generatedAt.textContent = new Date().toLocaleString('en-PH', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            const progressFills = document.querySelectorAll('.progress-fill');
+            progressFills.forEach(fill => {
+                const width = fill.getAttribute('data-width');
+                if (width) {
+                    fill.style.width = width + '%';
+                }
+            });
+
+            const dateRangeForm = document.getElementById('date-range-filter');
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+
+            function validateDateRange() {
+                const isBackwards = startDateInput.value && endDateInput.value && startDateInput.value > endDateInput.value;
+                const message = isBackwards ? 'Start date cannot be after end date.' : '';
+
+                startDateInput.setCustomValidity(message);
+                endDateInput.setCustomValidity(message);
+                return !isBackwards;
+            }
+
+            startDateInput.addEventListener('change', validateDateRange);
+            endDateInput.addEventListener('change', validateDateRange);
+            dateRangeForm.addEventListener('submit', function(event) {
+                if (!validateDateRange()) {
+                    event.preventDefault();
+                    endDateInput.reportValidity();
+                }
+            });
+        });
+
+        function printReport() {
+            if (dailyRevenueChart) {
+                dailyRevenueChart.resize();
+            }
+            window.print();
+        }
+    </script>
+
+    <style>
+        .filter-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .date-filter-form {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-group label {
+            font-weight: 500;
+            color: #555;
+        }
+
+        .filter-group input {
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .filter-btn {
+            background: #916DE8;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            height: fit-content;
+        }
+
+        .filter-btn:hover {
+            background: #7c5ae8;
+        }
+
+        .print-report-btn {
+            background: #fff;
+            color: #916DE8;
+            border: 1px solid #916DE8;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 600;
+            height: fit-content;
+        }
+
+        .print-report-btn:hover {
+            background: #f4efff;
+        }
+
+        .print-report-header {
+            display: none;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-section {
+            margin-bottom: 2rem;
+        }
+
+        .performance-section,
+        .daily-breakdown-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .performance-section h3,
+        .daily-breakdown-section h3 {
+            margin-bottom: 1rem;
+            color: #333;
+            font-size: 1.2rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-top: 1rem;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 1rem 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: middle;
+        }
+
+        .data-table thead th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+            letter-spacing: 0.5px;
+            text-transform: titlecase;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        @media (max-width: 900px) {
+            .data-table th,
+            .data-table td {
+                padding: 10px 8px;
+                font-size: 12px;
+            }
+        }
+
+        .progress-bar {
+            position: relative;
+            width: 100px;
+            height: 20px;
+            background-color: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: #28a745;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .status-active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-disapproved {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .nav-tab.cash-donations {
+            border-left: 2px solid #ddd !important;
+            padding-left: calc(2.4rem - 2px) !important;
+        }
+
+        .signout-btn {
+            color: #dc3545;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: text-decoration 0.3s ease;
+            margin-left: 1rem;
+        }
+
+        .signout-btn:hover {
+            text-decoration: underline;
+            color: #dc3545;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 14mm;
+            }
+
+            body {
+                background: #fff !important;
+                color: #111 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .navbar,
+            .treasurer-nav,
+            .filter-section,
+            .footer,
+            .signout-btn {
+                display: none !important;
+            }
+
+            .statistics-section {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .statistics-table {
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                background: #fff !important;
+            }
+
+            .statistics-table > h2,
+            .statistics-table > p {
+                display: none !important;
+            }
+
+            .print-report-header {
+                display: block;
+                margin-bottom: 1rem;
+                padding-bottom: 0.75rem;
+                border-bottom: 2px solid #333;
+            }
+
+            .print-report-header h1 {
+                margin: 0 0 0.25rem;
+                font-size: 22px;
+                color: #111;
+            }
+
+            .print-report-header p {
+                margin: 0.15rem 0;
+                font-size: 12px;
+                color: #444;
+            }
+
+            .summary-cards {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 0.5rem;
+                margin-bottom: 1rem;
+                page-break-inside: avoid;
+            }
+
+            .summary-card {
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+                padding: 0.75rem !important;
+            }
+
+            .summary-card h3 {
+                font-size: 11px !important;
+            }
+
+            .summary-card .amount {
+                font-size: 15px !important;
+            }
+
+            .summary-card .subtitle {
+                font-size: 10px !important;
+            }
+
+            .chart-container {
+                box-shadow: none !important;
+                border: 1px solid #ddd !important;
+                page-break-inside: avoid;
+                height: 280px !important;
+                margin-bottom: 1rem !important;
+            }
+
+            .chart-container canvas {
+                max-height: 220px !important;
+            }
+
+            .data-table-container {
+                page-break-inside: avoid;
+                margin-top: 1rem !important;
+            }
+
+            .table-container {
+                overflow: visible !important;
+            }
+
+            .data-table {
+                box-shadow: none !important;
+                border: 1px solid #ddd;
+                font-size: 10px;
+                margin-top: 0.5rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 0.35rem 0.4rem;
+                border: 1px solid #ddd;
+            }
+
+            .data-table thead th {
+                background: #f1f1f1 !important;
+                color: #111 !important;
+            }
+
+            .progress-bar {
+                border: 1px solid #aaa;
+            }
+
+            .status-badge {
+                border: 1px solid #bbb;
+                background: #fff !important;
+                color: #111 !important;
+            }
+        }
+    </style>
+
+    <script>
+        function confirmSignOut() {
+            if (confirm('Are you sure you want to sign out?')) {
+                window.location.href = "{{ url_for('signout') }}";
+            }
+        }
+    </script>
+</body>
+</html>

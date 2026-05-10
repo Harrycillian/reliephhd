@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ReliePH | Admin - In-Person Donations</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/purplehands.ico') }}">
+</head>
+<body>
+    <header class="navbar">
+        <div class="nav-left">
+            <img src="{{ url_for('static', filename='images/relieph_logo.png') }}" href="{{ url_for('index') }}" alt="ReliePH Logo" class="logo" />
+            <h3 class="logo-text">Welcome, Admin!</h3>
+        </div>
+        
+        <div class="nav-right">
+            <p class="profile">
+                <img src="{{ url_for('static', filename='images/userr.png') }}" alt="User Icon" class="user-icon">
+                {% set parts = session.get('username').split(' ') %}
+                {{ parts[0] if parts|length <= 2 else ' '.join(parts[:2]) }}
+            </p>
+        </div>
+    </header>
+
+    <nav class="secondary-nav">
+        <div class="nav-container">
+            <ul class="nav-tabs">
+                <li><a href="{{ url_for('admin') }}" class="nav-tab">Dashboard</a></li>
+                <li><a href="{{ url_for('admin_funds') }}" class="nav-tab">Fundraisers</a></li>
+                <li><a href="{{ url_for('admin_users') }}" class="nav-tab">Users</a></li>
+                <li><a href="{{ url_for('admin_reports') }}" class="nav-tab">Reports</a></li>
+                <li><a href="{{ url_for('admin_cash_donations') }}" class="nav-tab cash-donations active">In-Person Donations</a></li>
+                <li><a href="{{ url_for('blockchain_records') }}" class="nav-tab">Blockchain</a></li>
+                <li><a href="{{ url_for('admin_audit_trail') }}" class="nav-tab">Audit Trail</a></li>
+                <li><a href="{{ url_for('admin_settings') }}" class="nav-tab">Settings</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="statistics-section">
+        <div class="statistics-table">
+            <div class="section-header">
+                <h3>In-Person Donations Management</h3>
+                <p>Admin receives donations first, then endorses them to Treasurer for confirmation.</p>
+                <div class="action-buttons">
+                    <a href="{{ url_for('admin_cash_entry') }}" class="btn btn-primary">
+                        <i class="icon">+</i> Record New Donation
+                    </a>
+                </div>
+            </div>
+
+            <div class="dashboard-cards primary-stats">
+                <div class="stat-card small">
+                    <h3>Total In-Person Donations</h3>
+                    <p class="stat-number small">{{ stats.total_cash_donations }}</p>
+                    <p class="stat-subtitle">All Time</p>
+                </div>
+                <div class="stat-card small">
+                    <h3>In-Person Donations</h3>
+                    <p class="stat-number small">{{ stats.cash_count }}</p>
+                    <p class="stat-subtitle">Physical Cash</p>
+                </div>
+                <div class="stat-card small">
+                    <h3>Cheque Donations</h3>
+                    <p class="stat-number small">{{ stats.cheque_count }}</p>
+                    <p class="stat-subtitle">Cheque Payments</p>
+                </div>
+                <!-- <div class="stat-card small">
+                    <h3>Total Amount</h3>
+                    <p class="stat-number small">₱{{ "{:,.0f}".format(stats.total_amount) }}</p>
+                    <p class="stat-subtitle">Cash & Cheque</p>
+                </div> -->
+                <div class="stat-card small">
+                    <h3>Average Amount</h3>
+                    <p class="stat-number small">₱{{ "{:,.0f}".format(stats.avg_amount) }}</p>
+                    <p class="stat-subtitle">Per Donation</p>
+                </div>
+                <div class="stat-card small urgent">
+                    <h3>Today's Donations</h3>
+                    <p class="stat-number small" style="color: #FD7676;">{{ stats.today_count }}</p>
+                    <p class="stat-subtitle">Recorded Today</p>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div class="table-header">
+                    <h3>Recent In-Person Donations</h3>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ref #</th>
+                                <th>Donor Name</th>
+                                <th>Amount</th>
+                                <th>Type</th>
+                                <th>Fundraiser</th>
+                                <th>Date</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for donation in cash_donations %}
+                            <tr>
+                                <td>
+                                    <span class="reference-number" title="{{ donation.don_refnum }}">{{ donation.don_refnum }}</span>
+                                </td>
+                                <td>
+                                    <div class="donor-info">
+                                        <span class="donor-name">{{ donation.don_donorname or 'Anonymous' }}</span>
+                                        {% if donation.recorded_by_name %}
+                                        <small class="recorded-by">Recorded by: {{ donation.recorded_by_name }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="amount">₱{{ "{:,.2f}".format(donation.don_amount) }}</span>
+                                </td>
+                                <td>
+                                    <span class="payment-type {{ donation.don_paymethod.lower() }}">
+                                        {{ donation.don_paymethod }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if donation.fund_title %}
+                                        <span class="fundraiser-title">{{ donation.fund_title }}</span>
+                                    {% else %}
+                                        <span class="no-fundraiser">General Donation</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="donation-date">
+                                        {{ donation.don_date.strftime('%b %d, %Y') if donation.don_date else 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-badge status-{{ donation.don_status.lower() }}">
+                                        {{ donation.don_status }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="action-buttons">
+                                        <a href="{{ url_for('admin_cash_receipt_by_ref', refnum=donation.don_refnum) }}" 
+                                            class="btn btn-sm btn-outline" title="View Receipt">
+                                            View Receipt
+                                        </a>
+                                        {% if donation.don_status == 'Pending' %}
+                                        <button type="button" class="btn btn-sm btn-primary" value="{{ donation.don_id }}" data-refnum="{{ donation.don_refnum }}" onclick="endorseDonation(this)">
+                                            Endorse to Treasurer
+                                        </button>
+                                        {% elif donation.don_status == 'Endorsed' %}
+                                        <span class="endorsement-state">Awaiting Treasurer Confirmation</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="8" class="no-data">
+                                    <div class="no-data-content">
+                                        <p>No in-person donations recorded yet</p>
+                                        <a href="{{ url_for('admin_cash_entry') }}" class="btn btn-primary">
+                                            <i class="icon">+</i> Record First Donation
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination-container">
+                    <div class="pagination-info">
+                        <span class="pagination-text">
+                            Showing {{ [pagination.per_page, pagination.total - ((pagination.page - 1) * pagination.per_page)] | min if pagination.total > 0 else 0 }}
+                            out of {{ pagination.total }} entries
+                        </span>
+                    </div>
+                    <div class="pagination-controls">
+                        <a href="{{ url_for('admin_cash_donations', page=pagination.prev_num) if pagination.has_prev else '#' }}" 
+                        class="pagination-btn {{ 'disabled' if not pagination.has_prev else '' }}">
+                            <span>Previous</span>
+                        </a>
+                        
+                        <div class="pagination-pages">
+                            {% for page_num in range(1, [pagination.total_pages, 3] | min + 1) %}
+                                {% if page_num == pagination.page %}
+                                    <span class="pagination-page active">{{ page_num }}</span>
+                                {% else %}
+                                    <a href="{{ url_for('admin_cash_donations', page=page_num) }}" class="pagination-page">{{ page_num }}</a>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+
+                        <a href="{{ url_for('admin_cash_donations', page=pagination.total_pages) if pagination.page < pagination.total_pages else '#' }}"
+                        class="pagination-btn {{ 'disabled' if pagination.page >= pagination.total_pages else '' }}">
+                            <span>Last</span>
+                        </a>
+                        
+                        <a href="{{ url_for('admin_cash_donations', page=pagination.next_num) if pagination.has_next else '#' }}" 
+                        class="pagination-btn {{ 'disabled' if not pagination.has_next else '' }}">
+                            <span>Next</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <p>&copy; 2025 ReliePH. All rights reserved.</p>
+    </footer>
+
+    <style>
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .section-header h2 {
+            color: #2c3e50;
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .section-header p {
+            color: #6c757d;
+            margin: 0.5rem 0 0 0;
+            font-size: 0.95rem;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-family: 'Satoshi', sans-serif;
+            font-weight: 500;
+            font-size: 11px !important;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #916DE8, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(145, 109, 232, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #6c757d;
+            border: 1px solid #dee2e6;
+        }
+
+        .btn-outline:hover {
+            background: #f8f9fa;
+            color: #495057;
+        }
+
+        .btn-sm {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.8rem;
+        }
+
+        .table-section {
+            margin-top: 2rem;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .table-header h3 {
+            color: #2c3e50;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .table-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .table-count {
+            color: #6c757d;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            color: #495057;
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: titlecase;
+            letter-spacing: 0.5px;
+            padding: 1rem 0.75rem;
+            text-align: left;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .data-table td {
+            padding: 1rem 0.75rem;
+            border-bottom: 1px solid #f1f3f4;
+            vertical-align: middle;
+        }
+
+        .data-table th:nth-child(1), .data-table td:nth-child(1) { width: 15%; font-size: 8px; } /* Ref # */
+        .data-table th:nth-child(2), .data-table td:nth-child(2) { width: 14%; font-size: 11px; } /* Donor Name */
+        .data-table th:nth-child(3), .data-table td:nth-child(3) { width: 10%; font-size: 11px; } /* Amount */
+        .data-table th:nth-child(4), .data-table td:nth-child(4) { width: 9%; font-size: 11px; }  /* Type */
+        .data-table th:nth-child(5), .data-table td:nth-child(5) { width: 22%; font-size: 11px; } /* Fundraiser */
+        .data-table th:nth-child(6), .data-table td:nth-child(6) { width: 10%; font-size: 11px; } /* Date */
+        .data-table th:nth-child(7), .data-table td:nth-child(7) { width: 10%; font-size: 11px; } /* Status */
+        .data-table th:nth-child(8), .data-table td:nth-child(8) { width: 10%; font-size: 11px; } /* Actions */
+
+        .data-table th {
+            font-size: 12px !important;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .reference-number {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #916DE8;
+            font-size: 11px;
+        }
+
+        .donor-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .donor-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .recorded-by {
+            color: #6c757d;
+            font-size: 0.75rem;
+        }
+
+        .amount {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .payment-type {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .payment-type.cash {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .payment-type.cheque {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        .fundraiser-title {
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .no-fundraiser {
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .donation-date {
+            color: #6c757d;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: titlecase;
+        }
+
+        .status-badge.status-paid {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 500;
+            text-transform: titlecase;
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.status-endorsed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-badge.status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .endorsement-state {
+            color: #0c5460;
+            font-size: 0.75rem;
+            font-weight: 600;
+            white-space: normal;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .no-data-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .no-data-content i {
+            font-size: 3rem;
+            color: #dee2e6;
+        }
+
+        .no-data-content p {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .section-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+
+            .data-table {
+                font-size: 0.8rem;
+            }
+
+            .data-table th,
+            .data-table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.25rem;
+            }
+        }
+    </style>
+    <script>
+        function endorseDonation(button) {
+            const rawDonationId = button ? button.value : null;
+            const donationRefnum = button && button.dataset ? (button.dataset.refnum || '').trim() : '';
+            const donationId = (rawDonationId === null || rawDonationId === undefined || rawDonationId === '')
+                ? null
+                : parseInt(rawDonationId, 10);
+
+            if (donationId === null || Number.isNaN(donationId)) {
+                alert('Unable to endorse donation: missing donation ID.');
+                return;
+            }
+
+            if (!confirm('Endorse this donation to Treasurer for receipt confirmation?')) {
+                return;
+            }
+
+            fetch('/api/admin/endorse-cash-donation', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ donation_id: donationId, don_refnum: donationRefnum })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + (data.error || 'Unable to endorse donation.'));
+                }
+            })
+            .catch(error => {
+                console.error('Error endorsing donation:', error);
+                alert('An error occurred while endorsing the donation.');
+            });
+        }
+    </script>
+</body>
+</html>
