@@ -23,7 +23,6 @@ from apify_client import ApifyClient
 import joblib
 import numpy as np
 from openai import OpenAI
-from gpt4all import GPT4All
 from dotenv import load_dotenv
 
 from blockchain_integration import ( get_blockchain_manager,
@@ -4191,9 +4190,7 @@ def gen_story():
             )
             story = response.choices[0].message.content.strip()
         else:
-            model = GPT4All("gemma-3-270m")
-            with model.chat_session() as session_llm:
-                story = session_llm.generate(prompt, temp=0.7, max_tokens=350)
+            pass
     except Exception as e:
         return jsonify({'error': f'Failed to generate story: {str(e)}'}), 500
 
@@ -4232,9 +4229,7 @@ def gen_title():
             )
             polished = response.choices[0].message.content.strip()
         else:
-            model = GPT4All("gemma-3-270m")
-            with model.chat_session() as session_llm:
-                polished = session_llm.generate(prompt, temp=0.4, max_tokens=80).strip()
+            pass
     except Exception as e:
         return jsonify({'error': f'Failed to generate title: {str(e)}'}), 500
 
@@ -7533,9 +7528,7 @@ def scrape_and_filter():
                     )
                     raw_output = response.choices[0].message.content.strip()
                 else:
-                    gpt4all_model = GPT4All("gemma-3-270m")
-                    with gpt4all_model.chat_session() as session:
-                        raw_output = session.generate(prompt, temp=0.7, max_tokens=500)
+                   pass
 
                 try:
                     data = json.loads(raw_output)
